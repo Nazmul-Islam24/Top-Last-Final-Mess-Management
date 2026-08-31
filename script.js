@@ -798,21 +798,46 @@ function calculateAll() {
     let totalDeposit = 0;
     let totalLunch = 0;
     let totalDinner = 0;
+
+    // 🟢 [UPDATED DATA STRUCTURE] মেনুর নাম অনুযায়ী মিল ও বেলার সংখ্যা রাখার জন্য
+    // overallMenuSummary = { "Chicken": { totalMeals: 12, totalSessions: 3 } }
     const overallMenuSummary = {};
 
     Object.values(state.dailyMeals).forEach(dayData => {
         const lMenu = dayData.lunchMenu || "Fixed";
         const dMenu = dayData.dinnerMenu || "Fixed";
 
+        let dayLunchCount = 0;
+        let dayDinnerCount = 0;
+
+        // প্রতিটি মেম্বারের দুপুর ও রাতের মিল গণনা
         Object.values(dayData.meals || {}).forEach(m => {
             const lVal = Number(m.lunch) || 0;
             const dVal = Number(m.dinner) || 0;
             totalLunch += lVal;
             totalDinner += dVal;
 
-            if (lVal > 0) overallMenuSummary[lMenu] = (overallMenuSummary[lMenu] || 0) + lVal;
-            if (dVal > 0) overallMenuSummary[dMenu] = (overallMenuSummary[dMenu] || 0) + dVal;
+            dayLunchCount += lVal;
+            dayDinnerCount += dVal;
         });
+
+        // 🟢 দুপুরের মেনুর হিসেব ও বেলা (Session) কাউন্ট
+        if (dayLunchCount > 0 && lMenu !== "Not Cooked" && lMenu !== "Null") {
+            if (!overallMenuSummary[lMenu]) {
+                overallMenuSummary[lMenu] = { totalMeals: 0, totalSessions: 0 };
+            }
+            overallMenuSummary[lMenu].totalMeals += dayLunchCount;
+            overallMenuSummary[lMenu].totalSessions += 1; // ১ বেলা বাড়ল
+        }
+
+        // 🟢 রাতের মেনুর হিসেব ও বেলা (Session) কাউন্ট
+        if (dayDinnerCount > 0 && dMenu !== "Not Cooked" && dMenu !== "Null") {
+            if (!overallMenuSummary[dMenu]) {
+                overallMenuSummary[dMenu] = { totalMeals: 0, totalSessions: 0 };
+            }
+            overallMenuSummary[dMenu].totalMeals += dayDinnerCount;
+            overallMenuSummary[dMenu].totalSessions += 1; // ১ বেলা বাড়ল
+        }
     });
 
     const memberCount = state.members.length;
@@ -849,17 +874,26 @@ function calculateAll() {
     setElemText('bazar-total-display', `৳${totalBazar.toLocaleString()}`);
     setElemText('extra-total-display', `৳${totalExtra.toLocaleString()}`);
 
+    // 🟢 [UPDATED UI] ড্যাশবোর্ডে মেনুর কার্ডগুলোতে বেলার সংখ্যাসহ ডিসপ্লে
     const dashMenuContainer = document.getElementById('dash-menu-consumption-container');
     if (dashMenuContainer) {
         dashMenuContainer.innerHTML = '';
         const entries = Object.entries(overallMenuSummary);
         if (entries.length === 0) {
-            dashMenuContainer.innerHTML = '<div class="col-span-full text-slate-500 text-xs italic">এখনও কোনো খাবারের এন্ট্রি করা হয়নি।</div>';
+            dashMenuContainer.innerHTML = '<div class="col-span-full text-slate-500 text-xs italic">এখনও কোনো খাবারের এন্ট্রি করা হয়নি।</div>';
         } else {
-            entries.forEach(([menuName, count]) => {
+            entries.forEach(([menuName, data]) => {
                 const card = document.createElement('div');
                 card.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-between";
-                card.innerHTML = `<span class="text-xs text-slate-400 font-semibold truncate block mb-1">${menuName}</span><div class="text-lg font-black text-amber-400">${count} <span class="text-[10px] text-slate-500 font-normal">Meals</span></div>`;
+                card.innerHTML = `
+                    <span class="text-xs text-slate-400 font-semibold truncate block mb-2">${menuName}</span>
+                    <div class="flex items-baseline justify-between gap-1">
+                        <div class="text-lg font-black text-amber-400">${data.totalMeals} <span class="text-[10px] text-slate-500 font-normal">Meals</span></div>
+                        <div class="text-[11px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">
+                            <i class="fa-regular fa-clock text-[9px]"></i> ${data.totalSessions} বেলা
+                        </div>
+                    </div>
+                `;
                 dashMenuContainer.appendChild(card);
             });
         }
