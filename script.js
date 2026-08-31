@@ -229,13 +229,17 @@ function switchTabMobile(tabName) {
 // ==========================================
 
 function renderDailyMealTab() {
-    // 🟢 [FIX 1] অটো "1" ধরা বন্ধ করে খালি (null) ভ্যালু নেওয়া হচ্ছে
+    // 🟢 [FIX 1] অটো "1" ধরা বন্ধ করে খালি (null) ভ্যালু নেওয়া হচ্ছে
     const daySelect = document.getElementById('daily-date-select');
     const day = daySelect ? daySelect.value : "";
 
     const lMenu = document.getElementById('daily-lunch-menu');
     const dMenu = document.getElementById('daily-dinner-menu');
     const tbody = document.getElementById('daily-meal-table-body');
+
+    // 🟢 [UPDATE] Admin না হলে Lunch ও Dinner ড্রপডাউন disabled থাকবে
+    if (lMenu) lMenu.disabled = !isAdmin;
+    if (dMenu) dMenu.disabled = !isAdmin;
 
     // 🟢 [FIX 2] যদি কোনো দিন (Day) সিলেক্ট করা না থাকে, তবে মেনু "Null" ও টেবিল খালি থাকবে
     if (!day) {
@@ -245,14 +249,14 @@ function renderDailyMealTab() {
         return;
     }
 
-    // 🟢 [FIX 3] নতুন দিনের জন্য ডিফল্ট "Fixed" বাদ দিয়ে "Null" রাখা হচ্ছে
+    // 🟢 [FIX 3] নতুন দিনের জন্য ডিফল্ট "Fixed" বাদ দিয়ে "Null" রাখা হচ্ছে
     if (!tempDailyMeals[day]) {
         if (state.dailyMeals[day]) {
             tempDailyMeals[day] = JSON.parse(JSON.stringify(state.dailyMeals[day]));
         } else {
             tempDailyMeals[day] = {
-                lunchMenu: "Null",  // Fixed বাদ দিয়ে "Null" রাখা হলো
-                dinnerMenu: "Null", // Fixed বাদ দিয়ে "Null" রাখা হলো
+                lunchMenu: "Null",  // Fixed বাদ দিয়ে "Null" রাখা হলো
+                dinnerMenu: "Null", // Fixed বাদ দিয়ে "Null" রাখা হলো
                 meals: {}
             };
         }
@@ -296,12 +300,12 @@ function renderDailyMealTab() {
             <td class="p-1.5 sm:p-2.5 text-center">
                 <input type="number" min="0" step="0.5" placeholder="0" value="${lunchDisplay}" ${disabledAttr}
                     oninput="updateTempDailyMealCount('${day}', ${m.id}, 'lunch', this.value)"
-                    class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-amber-400 focus:outline-none focus:border-indigo-500">
+                    class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-amber-400 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
             </td>
             <td class="p-1.5 sm:p-2.5 text-center">
                 <input type="number" min="0" step="0.5" placeholder="0" value="${dinnerDisplay}" ${disabledAttr}
                     oninput="updateTempDailyMealCount('${day}', ${m.id}, 'dinner', this.value)"
-                    class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-indigo-400 focus:outline-none focus:border-indigo-500">
+                    class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-indigo-400 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
             </td>
             <td class="p-1.5 sm:p-2.5 text-center font-extrabold text-emerald-400 text-xs sm:text-sm" id="row-total-${m.id}">
                 ${totalDayMeal}
@@ -330,9 +334,11 @@ function renderDailyMealTab() {
 }
 
 
-// 🟢 [FIX 2] ইনপুটে টাইপ করলে এখন আর পুরো টেবিল রেন্ডার হবে না (ফলে কিবোর্ড ও ফোকাস ঠিক থাকবে)
+// 🟢 ইনপুটে টাইপ করলে এখন আর পুরো টেবিল রেন্ডার হবে না (ফলে কিবোর্ড ও ফোকাস ঠিক থাকবে)
 function updateTempDailyMealCount(day, memberId, type, val) {
-    if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Fixed", dinnerMenu: "Fixed", meals: {} };
+    if (!isAdmin) return; // Admin না হলে ডাটা পরিবর্তন হবে না
+
+    if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Null", dinnerMenu: "Null", meals: {} };
     if (!tempDailyMeals[day].meals[memberId]) tempDailyMeals[day].meals[memberId] = { lunch: 0, dinner: 0 };
 
     const parsedVal = val === "" ? 0 : (Number(val) || 0);
@@ -362,15 +368,17 @@ function updateTempDailyMealCount(day, memberId, type, val) {
 }
 
 
-
-
-// [NEW] মেনু সিলেক্ট করলে টেম্পোরারিতে সেভ রাখা
+// 🟢 [UPDATED] মেনু সিলেক্ট করলে টেম্পোরারিতে সেভ রাখা (Admin Check & Default Null Fix)
 function updateDailyMenu() {
-    const day = document.getElementById('daily-date-select')?.value || "1";
-    const lMenu = document.getElementById('daily-lunch-menu')?.value || "Fixed";
-    const dMenu = document.getElementById('daily-dinner-menu')?.value || "Fixed";
+    if (!isAdmin) return; // Admin না হলে কোনো পরিবর্তন হবে না
 
-    if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Fixed", dinnerMenu: "Fixed", meals: {} };
+    const day = document.getElementById('daily-date-select')?.value;
+    if (!day) return; // তারিখ সিলেক্ট না থাকলে আপডেট হবে না
+
+    const lMenu = document.getElementById('daily-lunch-menu')?.value || "Null";
+    const dMenu = document.getElementById('daily-dinner-menu')?.value || "Null";
+
+    if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Null", dinnerMenu: "Null", meals: {} };
 
     tempDailyMeals[day].lunchMenu = lMenu;
     tempDailyMeals[day].dinnerMenu = dMenu;
@@ -383,7 +391,12 @@ function submitDailyMeals() {
         return;
     }
 
-    const day = document.getElementById('daily-date-select')?.value || "1";
+    const day = document.getElementById('daily-date-select')?.value;
+
+    if (!day) {
+        alert("অনুগ্রহ করে একটি তারিখ নির্বাচন করুন।");
+        return;
+    }
 
     if (tempDailyMeals[day]) {
         state.dailyMeals[day] = JSON.parse(JSON.stringify(tempDailyMeals[day]));
@@ -400,7 +413,7 @@ function openMemberModal(memberId) {
     const member = state.members.find(m => m.id === memberId);
     if (!member) return;
 
-    // 🟢 [NEW CODE HERE] মডাল ওপেন হলে ওপরের ডানপাশে মাসের নাম বসাবে
+    // মডাল ওপেন হলে ওপরের ডানপাশে মাসের নাম বসাবে
     const monthEl = document.getElementById('modal-selected-month');
     if (monthEl) {
         monthEl.innerText = state.selectedMonth || 'August';
@@ -426,7 +439,7 @@ function openMemberModal(memberId) {
         const rawLunchMenu = dayInfo.lunchMenu || 'Null';
         const rawDinnerMenu = dayInfo.dinnerMenu || 'Null';
 
-        // [UPDATED LOGIC HERE] মিল ০ হলে এবং মেনু 'Not Cooked' হলে 'Not Cooked' দেখাবে, অন্যথায় 'Null'
+        // মিল ০ হলে এবং মেনু 'Not Cooked' হলে 'Not Cooked' দেখাবে, অন্যথায় 'Null'
         let lunchMenuName = '';
         if (l > 0) {
             lunchMenuName = rawLunchMenu;
