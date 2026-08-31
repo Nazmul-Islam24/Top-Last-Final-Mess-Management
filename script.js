@@ -617,46 +617,26 @@ function evaluateCostInput(val) {
 }
 
 // BAZAR & EXTRA RENDERERS
+
 function renderBazar() {
     const tbody = document.getElementById('bazar-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
-    const disabledAttr = isAdmin ? '' : 'disabled';
-    const defaultDate = getSelectedMonthDefaultDate();
 
     state.bazar.forEach((item, idx) => {
         const tr = document.createElement('tr');
         tr.className = "border-b border-slate-700/50 hover:bg-slate-700/20 transition";
         tr.innerHTML = `
-            <td class="p-2">
-                <input type="text" value="${item.name || ''}" ${disabledAttr} 
-                    placeholder="যেমন: চাল, ডাল, মুরগি..." 
-                    oninput="updateBazar(${idx}, 'name', this.value)" 
-                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 disabled:bg-transparent disabled:border-none disabled:p-0">
-            </td>
-            <td class="p-2">
-                <div class="relative flex items-center">
-                    <i class="fa-regular fa-calendar absolute left-2 text-indigo-400 text-xs pointer-events-none"></i>
-                    <input type="date" value="${item.date || defaultDate}" ${disabledAttr} 
-                        onchange="updateBazar(${idx}, 'date', this.value)" 
-                        class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg pl-7 pr-1.5 py-1.5 text-[11px] sm:text-xs text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer disabled:bg-transparent disabled:border-none disabled:pl-0">
-                </div>
-            </td>
-            <td class="p-2">
-                <input type="text" value="${item.qty || ''}" ${disabledAttr} 
-                    placeholder="৫ কেজী" 
-                    oninput="updateBazar(${idx}, 'qty', this.value)" 
-                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-transparent disabled:border-none disabled:p-0">
-            </td>
-            <td class="p-2">
-                <input type="text" value="${item.cost || ''}" ${disabledAttr} 
-                    onchange="updateBazarCost(${idx}, this.value, 'bazar')" 
-                    placeholder="e.g. 500+200" 
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-emerald-400 font-bold focus:outline-none focus:border-indigo-500 disabled:bg-transparent disabled:border-none disabled:p-0">
-            </td>
+            <td class="p-2 text-xs sm:text-sm text-slate-100 truncate">${item.name || '-'}</td>
+            <td class="p-2 text-[11px] sm:text-xs text-slate-400">${item.date || '-'}</td>
+            <td class="p-2 text-xs text-slate-300">${item.qty || '-'}</td>
+            <td class="p-2 text-xs sm:text-sm text-emerald-400 font-bold">৳${evaluateCostInput(item.cost) || 0}</td>
             ${isAdmin ? `
-            <td class="p-2 text-center">
-                <button onclick="deleteBazar(${idx})" class="text-rose-400 hover:text-rose-300 p-1">
+            <td class="p-2 text-center space-x-1">
+                <button onclick="editBazarModal(${idx})" class="text-indigo-400 hover:text-indigo-300 p-1" title="Edit">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="deleteBazar(${idx})" class="text-rose-400 hover:text-rose-300 p-1" title="Delete">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>` : ''}
@@ -669,48 +649,143 @@ function renderExtra() {
     const tbody = document.getElementById('extra-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
-    const disabledAttr = isAdmin ? '' : 'disabled';
-    const defaultDate = getSelectedMonthDefaultDate();
 
     state.extra.forEach((item, idx) => {
         const tr = document.createElement('tr');
         tr.className = "border-b border-slate-700/50 hover:bg-slate-700/20 transition";
         tr.innerHTML = `
-            <td class="p-2">
-                <input type="text" value="${item.name || ''}" ${disabledAttr} 
-                    placeholder="যেমন: Cleaner, Hand-Wash..." 
-                    oninput="updateExtra(${idx}, 'name', this.value)" 
-                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 disabled:bg-transparent disabled:border-none disabled:p-0">
-            </td>
-            <td class="p-2">
-                <div class="relative flex items-center">
-                    <i class="fa-regular fa-calendar absolute left-2 text-pink-400 text-xs pointer-events-none"></i>
-                    <input type="date" value="${item.date || defaultDate}" ${disabledAttr} 
-                        onchange="updateExtra(${idx}, 'date', this.value)" 
-                        class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg pl-7 pr-1.5 py-1.5 text-[11px] sm:text-xs text-slate-200 focus:outline-none focus:border-pink-500 cursor-pointer disabled:bg-transparent disabled:border-none disabled:pl-0">
-                </div>
-            </td>
-            <td class="p-2">
-                <input type="text" value="${item.qty || ''}" ${disabledAttr} 
-                    placeholder="১টি" 
-                    oninput="updateExtra(${idx}, 'qty', this.value)" 
-                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-pink-500 disabled:bg-transparent disabled:border-none disabled:p-0">
-            </td>
-            <td class="p-2">
-                <input type="text" value="${item.cost || ''}" ${disabledAttr} 
-                    onchange="updateBazarCost(${idx}, this.value, 'extra')" 
-                    placeholder="e.g. 100+50" 
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-pink-400 font-bold focus:outline-none focus:border-pink-500 disabled:bg-transparent disabled:border-none disabled:p-0">
-            </td>
+            <td class="p-2 text-xs sm:text-sm text-slate-100 truncate">${item.name || '-'}</td>
+            <td class="p-2 text-[11px] sm:text-xs text-slate-400">${item.date || '-'}</td>
+            <td class="p-2 text-xs text-slate-300">${item.qty || '-'}</td>
+            <td class="p-2 text-xs sm:text-sm text-pink-400 font-bold">৳${evaluateCostInput(item.cost) || 0}</td>
             ${isAdmin ? `
-            <td class="p-2 text-center">
-                <button onclick="deleteExtra(${idx})" class="text-rose-400 hover:text-rose-300 p-1">
+            <td class="p-2 text-center space-x-1">
+                <button onclick="editExtraModal(${idx})" class="text-pink-400 hover:text-pink-300 p-1" title="Edit">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="deleteExtra(${idx})" class="text-rose-400 hover:text-rose-300 p-1" title="Delete">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>` : ''}
         `;
         tbody.appendChild(tr);
     });
+}
+
+// 🟢 MODAL OPENERS & HANDLERS
+
+function addBazarRow() {
+    if (!isAdmin) return;
+    document.getElementById('bazar-form').reset();
+    document.getElementById('modal-bazar-index').value = '';
+    document.getElementById('modal-bazar-date').value = getSelectedMonthDefaultDate();
+    document.getElementById('bazar-modal-title').innerText = "Add Bazar Item";
+    document.getElementById('bazar-modal').classList.remove('hidden');
+}
+
+function addExtraRow() {
+    if (!isAdmin) return;
+    document.getElementById('extra-form').reset();
+    document.getElementById('modal-extra-index').value = '';
+    document.getElementById('modal-extra-date').value = getSelectedMonthDefaultDate();
+    document.getElementById('extra-modal-title').innerText = "Add Extra Expense";
+    document.getElementById('extra-modal').classList.remove('hidden');
+}
+
+function editBazarModal(idx) {
+    if (!isAdmin) return;
+    const item = state.bazar[idx];
+    document.getElementById('modal-bazar-index').value = idx;
+    document.getElementById('modal-bazar-name').value = item.name || '';
+    document.getElementById('modal-bazar-date').value = item.date || getSelectedMonthDefaultDate();
+    document.getElementById('modal-bazar-qty').value = item.qty || '';
+    document.getElementById('modal-bazar-cost').value = item.cost || '';
+    document.getElementById('bazar-modal-title').innerText = "Edit Bazar Item";
+    document.getElementById('bazar-modal').classList.remove('hidden');
+}
+
+function editExtraModal(idx) {
+    if (!isAdmin) return;
+    const item = state.extra[idx];
+    document.getElementById('modal-extra-index').value = idx;
+    document.getElementById('modal-extra-name').value = item.name || '';
+    document.getElementById('modal-extra-date').value = item.date || getSelectedMonthDefaultDate();
+    document.getElementById('modal-extra-qty').value = item.qty || '';
+    document.getElementById('modal-extra-cost').value = item.cost || '';
+    document.getElementById('extra-modal-title').innerText = "Edit Extra Expense";
+    document.getElementById('extra-modal').classList.remove('hidden');
+}
+
+function closeBazarModal() {
+    document.getElementById('bazar-modal').classList.add('hidden');
+}
+
+function closeExtraModal() {
+    document.getElementById('extra-modal').classList.add('hidden');
+}
+
+function saveBazarModal(e) {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const idx = document.getElementById('modal-bazar-index').value;
+    const name = document.getElementById('modal-bazar-name').value;
+    const date = document.getElementById('modal-bazar-date').value;
+    const qty = document.getElementById('modal-bazar-qty').value;
+    const rawCost = document.getElementById('modal-bazar-cost').value;
+
+    if (idx !== '') {
+        state.bazar[idx] = { ...state.bazar[idx], name, date, qty, cost: rawCost };
+    } else {
+        state.bazar.push({ id: Date.now(), name, date, qty, cost: rawCost });
+    }
+
+    closeBazarModal();
+    renderBazar();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function saveExtraModal(e) {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const idx = document.getElementById('modal-extra-index').value;
+    const name = document.getElementById('modal-extra-name').value;
+    const date = document.getElementById('modal-extra-date').value;
+    const qty = document.getElementById('modal-extra-qty').value;
+    const rawCost = document.getElementById('modal-extra-cost').value;
+
+    if (idx !== '') {
+        state.extra[idx] = { ...state.extra[idx], name, date, qty, cost: rawCost };
+    } else {
+        state.extra.push({ id: Date.now(), name, date, qty, cost: rawCost });
+    }
+
+    closeExtraModal();
+    renderExtra();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+// 🟢 EXISTING COMPATIBILITY & UTILITY FUNCTIONS
+
+function deleteBazar(idx) {
+    if (!isAdmin) return;
+    state.bazar.splice(idx, 1);
+    renderBazar();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function deleteExtra(idx) {
+    if (!isAdmin) return;
+    state.extra.splice(idx, 1);
+    renderExtra();
+    calculateAll();
+    renderSummary();
+    saveData(false);
 }
 
 function updateBazar(index, key, val) {
@@ -744,7 +819,6 @@ function updateBazarCost(index, val, type) {
     saveData(false);
 }
 
-// সিলেক্টেড মাস অনুযায়ী তারিখ বের করার ফাংশন
 function getSelectedMonthDefaultDate() {
     const activeMonth = state?.currentMonth || new Date().toISOString().slice(0, 7);
     const today = new Date();
@@ -757,41 +831,6 @@ function getSelectedMonthDefaultDate() {
     }
 }
 
-function addBazarRow() {
-    if (!isAdmin) return;
-    state.bazar.push({ id: Date.now(), name: "", date: getSelectedMonthDefaultDate(), qty: "1 pc", cost: 0 });
-    renderBazar();
-    calculateAll();
-    renderSummary();
-    saveData(false);
-}
-
-function deleteBazar(idx) {
-    if (!isAdmin) return;
-    state.bazar.splice(idx, 1);
-    renderBazar();
-    calculateAll();
-    renderSummary();
-    saveData(false);
-}
-
-function addExtraRow() {
-    if (!isAdmin) return;
-    state.extra.push({ id: Date.now(), name: "", date: getSelectedMonthDefaultDate(), qty: "1 pc", cost: 0 });
-    renderExtra();
-    calculateAll();
-    renderSummary();
-    saveData(false);
-}
-
-function deleteExtra(idx) {
-    if (!isAdmin) return;
-    state.extra.splice(idx, 1);
-    renderExtra();
-    calculateAll();
-    renderSummary();
-    saveData(false);
-}
 
 // MAIN CALCULATIONS ENGINE
 function calculateAll() {

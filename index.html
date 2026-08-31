@@ -507,7 +507,7 @@
             <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4" id="members-container"></div>
         </section>
 
-        <!-- BAZAR & EXTRA EXPENSES TAB -->
+        <!-- BAZAR & EXTRA EXPENSES TAB (আপনার মূল HTML কোড - ১ অক্ষরও পরিবর্তন করা হয়নি) -->
         <section id="sec-bazar" class="hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -580,6 +580,92 @@
 
             </div>
         </section>
+
+        <!-- 🟢 BAZAR MODAL FORM (HTML এর নিচে Body ট্যাগের ঠিক উপরে রাখবেন) -->
+        <div id="bazar-modal"
+            class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+            <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="text-base font-bold text-slate-100" id="bazar-modal-title">Add Bazar Item</h3>
+                    <button onclick="closeBazarModal()" class="text-slate-400 hover:text-white text-lg"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form id="bazar-form" onsubmit="saveBazarModal(event)" class="p-4 space-y-3 text-xs sm:text-sm">
+                    <input type="hidden" id="modal-bazar-index">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Item Name</label>
+                        <input type="text" id="modal-bazar-name" placeholder="যেমন: চাল, ডাল, মুরগি..." required
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Date</label>
+                            <input type="date" id="modal-bazar-date" required
+                                class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Qty/Size</label>
+                            <input type="text" id="modal-bazar-qty" placeholder="৫ কেজী"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Cost (৳)</label>
+                        <input type="text" id="modal-bazar-cost" placeholder="e.g. 500+200" required
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-emerald-400 font-bold focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onclick="closeBazarModal()"
+                            class="px-4 py-2 bg-slate-800 text-slate-300 font-semibold rounded-xl hover:bg-slate-700">Cancel</button>
+                        <button type="submit"
+                            class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 🟢 EXTRA MODAL FORM -->
+        <div id="extra-modal"
+            class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+            <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="text-base font-bold text-slate-100" id="extra-modal-title">Add Extra Expense</h3>
+                    <button onclick="closeExtraModal()" class="text-slate-400 hover:text-white text-lg"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form id="extra-form" onsubmit="saveExtraModal(event)" class="p-4 space-y-3 text-xs sm:text-sm">
+                    <input type="hidden" id="modal-extra-index">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Extra Item</label>
+                        <input type="text" id="modal-extra-name" placeholder="যেমন: Cleaner, Hand-Wash..." required
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-pink-500 focus:outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Date</label>
+                            <input type="date" id="modal-extra-date" required
+                                class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-pink-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Qty</label>
+                            <input type="text" id="modal-extra-qty" placeholder="১টি"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-pink-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Cost (৳)</label>
+                        <input type="text" id="modal-extra-cost" placeholder="e.g. 100+50" required
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-pink-400 font-bold focus:border-pink-500 focus:outline-none">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onclick="closeExtraModal()"
+                            class="px-4 py-2 bg-slate-800 text-slate-300 font-semibold rounded-xl hover:bg-slate-700">Cancel</button>
+                        <button type="submit"
+                            class="px-5 py-2 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl shadow-lg">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- FINAL SUMMARY TAB SECTION -->
         <section id="sec-summary" class="hidden space-y-6">
