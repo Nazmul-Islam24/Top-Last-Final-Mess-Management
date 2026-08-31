@@ -133,6 +133,12 @@ function updateAdminUI() {
     const adminControls = document.getElementById('admin-controls');
     const adminOnlyElems = document.querySelectorAll('.admin-only');
 
+    // 🟢 [NEW] Month Selector Control - এডমিন না হলে ডিসেবল থাকবে
+    const monthDropdown = document.getElementById('selected-month');
+    if (monthDropdown) {
+        monthDropdown.disabled = !isAdmin;
+    }
+
     if (isAdmin) {
         if (btnText) btnText.innerText = "Logout Admin";
         if (adminControls) adminControls.classList.remove('hidden');
@@ -377,6 +383,12 @@ function openMemberModal(memberId) {
     const member = state.members.find(m => m.id === memberId);
     if (!member) return;
 
+    // 🟢 [NEW CODE HERE] মডাল ওপেন হলে ওপরের ডানপাশে মাসের নাম বসাবে
+    const monthEl = document.getElementById('modal-selected-month');
+    if (monthEl) {
+        monthEl.innerText = state.selectedMonth || 'August';
+    }
+
     let memberLunch = 0;
     let memberDinner = 0;
     const menuCounts = {};
@@ -394,8 +406,8 @@ function openMemberModal(memberId) {
         memberLunch += l;
         memberDinner += d;
 
-        const rawLunchMenu = dayInfo.lunchMenu || 'Fixed';
-        const rawDinnerMenu = dayInfo.dinnerMenu || 'Fixed';
+        const rawLunchMenu = dayInfo.lunchMenu || 'Null';
+        const rawDinnerMenu = dayInfo.dinnerMenu || 'Null';
 
         // [UPDATED LOGIC HERE] মিল ০ হলে এবং মেনু 'Not Cooked' হলে 'Not Cooked' দেখাবে, অন্যথায় 'Null'
         let lunchMenuName = '';
@@ -1196,7 +1208,8 @@ function syncToGoogleSheets() {
     }
 
     const payload = {
-        month: state.selectedMonth || "August",
+        // 🟢 এই নিচের লাইনটিতে পরিবর্তন করা হয়েছে (নির্দিষ্ট মাসের বদলে ডাইনামিক চলতি মাস ব্যাকআপ হবে)
+        month: state.selectedMonth || new Date().toLocaleString('en-US', { month: 'long' }),
         members: state.members,
         bazar: state.bazar,
         extra: state.extra,
