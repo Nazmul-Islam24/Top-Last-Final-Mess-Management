@@ -507,7 +507,7 @@
             <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4" id="members-container"></div>
         </section>
 
-        <!-- BAZAR & EXTRA EXPENSES TAB (আপনার মূল HTML কোড - ১ অক্ষরও পরিবর্তন করা হয়নি) -->
+        <!-- BAZAR & EXTRA EXPENSES TAB -->
         <section id="sec-bazar" class="hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -522,15 +522,15 @@
                             <i class="fa-solid fa-plus"></i> Add Item
                         </button>
                     </div>
-                    <div class="w-full">
-                        <table class="w-full text-left text-xs sm:text-sm text-slate-300 table-fixed">
+                    <div class="w-full overflow-x-auto">
+                        <table class="w-full text-left text-xs sm:text-sm text-slate-300 table-auto sm:table-fixed">
                             <thead class="bg-slate-900/60 uppercase text-slate-400 text-[10px] sm:text-xs">
                                 <tr>
-                                    <th class="p-1 sm:p-2.5">Item Name</th>
-                                    <th class="p-1 sm:p-2.5 w-24 sm:w-32">Date</th>
-                                    <th class="p-1 sm:p-2.5 w-14 sm:w-20">Qty/Size</th>
-                                    <th class="p-1 sm:p-2.5 w-20 sm:w-28">Cost (৳)</th>
-                                    <th class="p-1 sm:p-2 w-6 sm:w-8 admin-only hidden"></th>
+                                    <th class="p-2 w-auto sm:w-2/5">Item Name</th>
+                                    <th class="p-2 w-20 sm:w-1/5">Date</th>
+                                    <th class="p-2 w-16 sm:w-1/5 text-center">Qty/Size</th>
+                                    <th class="p-2 w-20 sm:w-1/5 text-right">Cost (৳)</th>
+                                    <th class="p-2 w-12 text-center admin-only hidden"></th>
                                 </tr>
                             </thead>
                             <tbody id="bazar-table-body"></tbody>
@@ -557,15 +557,15 @@
                             <i class="fa-solid fa-plus"></i> Add Extra
                         </button>
                     </div>
-                    <div class="w-full">
-                        <table class="w-full text-left text-xs sm:text-sm text-slate-300 table-fixed">
+                    <div class="w-full overflow-x-auto">
+                        <table class="w-full text-left text-xs sm:text-sm text-slate-300 table-auto sm:table-fixed">
                             <thead class="bg-slate-900/60 uppercase text-slate-400 text-[10px] sm:text-xs">
                                 <tr>
-                                    <th class="p-1 sm:p-2.5">Extra Item</th>
-                                    <th class="p-1 sm:p-2.5 w-24 sm:w-32">Date</th>
-                                    <th class="p-1 sm:p-2.5 w-14 sm:w-20">Qty</th>
-                                    <th class="p-1 sm:p-2.5 w-20 sm:w-28">Cost (৳)</th>
-                                    <th class="p-1 sm:p-2 w-6 sm:w-8 admin-only hidden"></th>
+                                    <th class="p-2 w-auto sm:w-2/5">Extra Item</th>
+                                    <th class="p-2 w-20 sm:w-1/5">Date</th>
+                                    <th class="p-2 w-16 sm:w-1/5 text-center">Qty</th>
+                                    <th class="p-2 w-20 sm:w-1/5 text-right">Cost (৳)</th>
+                                    <th class="p-2 w-12 text-center admin-only hidden"></th>
                                 </tr>
                             </thead>
                             <tbody id="extra-table-body"></tbody>

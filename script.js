@@ -627,12 +627,25 @@ function renderBazar() {
         const tr = document.createElement('tr');
         tr.className = "border-b border-slate-700/50 hover:bg-slate-700/20 transition";
         tr.innerHTML = `
-            <td class="p-2 text-xs sm:text-sm text-slate-100 truncate">${item.name || '-'}</td>
-            <td class="p-2 text-[11px] sm:text-xs text-slate-400">${item.date || '-'}</td>
-            <td class="p-2 text-xs text-slate-300">${item.qty || '-'}</td>
-            <td class="p-2 text-xs sm:text-sm text-emerald-400 font-bold">৳${evaluateCostInput(item.cost) || 0}</td>
+            <!-- Item Name: break-words ও leading-tight ব্যবহার করা হয়েছে যাতে বড় নামও স্পষ্ট পুরো দেখায় -->
+            <td class="py-2.5 px-2 text-xs sm:text-sm text-slate-100 font-medium break-words max-w-[120px] sm:max-w-none leading-tight">
+                ${item.name || '-'}
+            </td>
+            <!-- Date: whitespace-nowrap দেওয়া হয়েছে যাতে তারিখ ভেঙে না যায় -->
+            <td class="py-2.5 px-1 sm:px-2 text-[10px] sm:text-xs text-slate-400 whitespace-nowrap">
+                ${item.date || '-'}
+            </td>
+            <!-- Qty -->
+            <td class="py-2.5 px-1 sm:px-2 text-xs text-slate-300 text-center whitespace-nowrap">
+                ${item.qty || '-'}
+            </td>
+            <!-- Cost -->
+            <td class="py-2.5 px-1 sm:px-2 text-xs sm:text-sm text-emerald-400 font-bold text-right whitespace-nowrap">
+                ৳${evaluateCostInput(item.cost) || 0}
+            </td>
+            <!-- Action Buttons -->
             ${isAdmin ? `
-            <td class="p-2 text-center space-x-1">
+            <td class="py-2.5 px-1 text-center whitespace-nowrap space-x-1">
                 <button onclick="editBazarModal(${idx})" class="text-indigo-400 hover:text-indigo-300 p-1" title="Edit">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
@@ -654,12 +667,25 @@ function renderExtra() {
         const tr = document.createElement('tr');
         tr.className = "border-b border-slate-700/50 hover:bg-slate-700/20 transition";
         tr.innerHTML = `
-            <td class="p-2 text-xs sm:text-sm text-slate-100 truncate">${item.name || '-'}</td>
-            <td class="p-2 text-[11px] sm:text-xs text-slate-400">${item.date || '-'}</td>
-            <td class="p-2 text-xs text-slate-300">${item.qty || '-'}</td>
-            <td class="p-2 text-xs sm:text-sm text-pink-400 font-bold">৳${evaluateCostInput(item.cost) || 0}</td>
+            <!-- Item Name -->
+            <td class="py-2.5 px-2 text-xs sm:text-sm text-slate-100 font-medium break-words max-w-[120px] sm:max-w-none leading-tight">
+                ${item.name || '-'}
+            </td>
+            <!-- Date -->
+            <td class="py-2.5 px-1 sm:px-2 text-[10px] sm:text-xs text-slate-400 whitespace-nowrap">
+                ${item.date || '-'}
+            </td>
+            <!-- Qty -->
+            <td class="py-2.5 px-1 sm:px-2 text-xs text-slate-300 text-center whitespace-nowrap">
+                ${item.qty || '-'}
+            </td>
+            <!-- Cost -->
+            <td class="py-2.5 px-1 sm:px-2 text-xs sm:text-sm text-pink-400 font-bold text-right whitespace-nowrap">
+                ৳${evaluateCostInput(item.cost) || 0}
+            </td>
+            <!-- Action Buttons -->
             ${isAdmin ? `
-            <td class="p-2 text-center space-x-1">
+            <td class="py-2.5 px-1 text-center whitespace-nowrap space-x-1">
                 <button onclick="editExtraModal(${idx})" class="text-pink-400 hover:text-pink-300 p-1" title="Edit">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
