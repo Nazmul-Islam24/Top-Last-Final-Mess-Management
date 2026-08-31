@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="bn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bachelor Brotherhood - Mess Management System</title>
+    <!-- Custom App Favicon (SVG Data URI) -->
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%236366f1'/%3E%3Cpath d='M50 30 L80 50 H20 Z' fill='%23ffffff' stroke='%23ffffff' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='52' r='5' fill='%23ffffff'/%3E%3Cpath d='M42 70 C42 62 58 62 58 70' fill='%23ffffff'/%3E%3Ccircle cx='35' cy='58' r='4' fill='%23ffffff'/%3E%3Ccircle cx='65' cy='58' r='4' fill='%23ffffff'/%3E%3Cpath d='M58 73 C58 66 72 66 72 73' fill='%23ffffff'/%3E%3C/svg%3E">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Header Section -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-md">
+        <div
+            class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
+
+            <div class="flex items-center justify-between w-full sm:w-auto">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 p-2 sm:p-3 rounded-xl shadow-lg">
+                        <i class="fa-solid fa-people-roof text-lg sm:text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1
+                            class="text-lg sm:text-2xl font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                            Bachelor Brotherhood</h1>
+                        <p class="text-[10px] sm:text-xs text-slate-400 flex items-center gap-1"><i
+                                class="fa-solid fa-location-dot text-rose-400"></i> Uttara, Dhaka, Bangladesh</p>
+                    </div>
+                </div>
+
+                <!-- 🟢 নতুন যোগ করা মোবাইল সার্চ বক্স (যা মোবাইল নেভবারে সবসময় দেখাবে) -->
+                <div class="sm:hidden flex-1 max-w-[150px] mx-2">
+                    <div
+                        class="flex items-center gap-1 bg-slate-900 border border-indigo-500/40 px-2 py-1.5 rounded-lg">
+                        <i class="fa-solid fa-magnifying-glass text-indigo-400 text-[10px]"></i>
+                        <select id="global-member-search-mobile" onchange="handleMemberSelect(this.value)"
+                            class="bg-transparent text-[10px] text-slate-200 w-full focus:outline-none cursor-pointer font-medium">
+                            <!-- Dynamic Member List Will Render Here -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Mobile Menu Button (Hamburger) -->
+                <button onclick="toggleMobileMenu()"
+                    class="md:hidden text-slate-300 hover:text-white p-2 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none">
+                    <i id="mobile-menu-icon" class="fa-solid fa-bars text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Month Selector & Global Controls -->
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
+                <!-- Month Selector Dropdown -->
+                <div class="flex items-center gap-1 bg-slate-900 border border-slate-700 px-2.5 py-1.5 rounded-lg">
+                    <i class="fa-solid fa-calendar-days text-indigo-400 text-xs"></i>
+                    <select id="selected-month" onchange="renderAll()"
+                        class="bg-transparent text-xs font-semibold text-slate-200 outline-none cursor-pointer">
+                        <option value="January" class="bg-slate-800">January</option>
+                        <option value="February" class="bg-slate-800">February</option>
+                        <option value="March" class="bg-slate-800">March</option>
+                        <option value="April" class="bg-slate-800">April</option>
+                        <option value="May" class="bg-slate-800">May</option>
+                        <option value="June" class="bg-slate-800">June</option>
+                        <option value="July" class="bg-slate-800">July</option>
+                        <option value="August" class="bg-slate-800" selected>August</option>
+                        <option value="September" class="bg-slate-800">September</option>
+                        <option value="October" class="bg-slate-800">October</option>
+                        <option value="November" class="bg-slate-800">November</option>
+                        <option value="December" class="bg-slate-800">December</option>
+                    </select>
+                </div>
+
+                <!-- Admin Login/Logout Button -->
+                <button id="admin-toggle-btn" onclick="openAdminModal()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md">
+                    <i class="fa-solid fa-lock"></i> <span id="admin-btn-text">Admin Login</span>
+                </button>
+
+                <!-- Admin Action Buttons -->
+                <div id="admin-controls" class="hidden flex items-center gap-2">
+                    <button onclick="saveData(true)"
+                        class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md">
+                        <i class="fa-solid fa-floppy-disk"></i> <span class="hidden sm:inline">Save & Cloud</span>
+                    </button>
+                    <button onclick="resetData()"
+                        class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-2.5 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-rotate-right"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- [Desktop Navigation Tabs & Global Search Bar] -->
+        <div
+            class="max-w-7xl mx-auto px-4 py-2 border-t border-slate-700/50 hidden md:flex justify-between items-center gap-3">
+            <div class="flex gap-2">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard"
+                    class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 border-indigo-500 text-indigo-400 flex items-center gap-2 whitespace-nowrap"><i
+                        class="fa-solid fa-chart-pie"></i> Dashboard</button>
+                <button onclick="switchTab('daily-meal')" id="tab-daily-meal"
+                    class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap"><i
+                        class="fa-solid fa-calendar-check text-amber-400"></i> Daily Meal Sheet</button>
+                <button onclick="switchTab('members')" id="tab-members"
+                    class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap"><i
+                        class="fa-solid fa-users"></i> Members (<span id="tab-member-count">0</span>)</button>
+                <button onclick="switchTab('bazar')" id="tab-bazar"
+                    class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap"><i
+                        class="fa-solid fa-cart-shopping"></i> Bazar & Extra Expenses</button>
+                <button onclick="switchTab('summary')" id="tab-summary"
+                    class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap"><i
+                        class="fa-solid fa-file-invoice-dollar text-cyan-400"></i> Final Summary</button>
+            </div>
+
+            <!-- AUTOMATIC MEMBER SEARCH BOX -->
+            <div
+                class="w-64 flex items-center gap-2 bg-slate-900/90 border border-indigo-500/40 focus-within:border-indigo-400 px-3 py-1.5 rounded-xl shadow-inner">
+                <i class="fa-solid fa-magnifying-glass text-indigo-400 text-sm"></i>
+                <select id="global-member-search" onchange="handleMemberSelect(this.value)"
+                    class="bg-transparent text-xs text-slate-200 w-full focus:outline-none cursor-pointer font-medium">
+                    <!-- Dynamic Member List Will Render Here -->
+                </select>
+            </div>
+        </div>
+
+        <!-- [Mobile Dropdown Menu Navigation] (ছোট স্ক্রিনে দেখাবে) -->
+        <div id="mobile-menu"
+            class="hidden md:hidden bg-slate-900 border-t border-slate-700/80 px-4 py-3 space-y-2 shadow-2xl">
+            <button onclick="switchTabMobile('dashboard')" id="mobile-tab-dashboard"
+                class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+                <span class="flex items-center gap-2.5"><i class="fa-solid fa-chart-pie w-4 text-indigo-400"></i>
+                    Dashboard</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+            </button>
+            <button onclick="switchTabMobile('daily-meal')" id="mobile-tab-daily-meal"
+                class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+                <span class="flex items-center gap-2.5"><i class="fa-solid fa-calendar-check w-4 text-amber-400"></i>
+                    Daily Meal Sheet</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+            </button>
+            <button onclick="switchTabMobile('members')" id="mobile-tab-members"
+                class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+                <span class="flex items-center gap-2.5"><i class="fa-solid fa-users w-4 text-emerald-400"></i> Members
+                    (<span id="mobile-tab-member-count">0</span>)</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+            </button>
+            <button onclick="switchTabMobile('bazar')" id="mobile-tab-bazar"
+                class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+                <span class="flex items-center gap-2.5"><i class="fa-solid fa-cart-shopping w-4 text-sky-400"></i> Bazar
+                    & Extra Expenses</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+            </button>
+            <button onclick="switchTabMobile('summary')" id="mobile-tab-summary"
+                class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+                <span class="flex items-center gap-2.5"><i
+                        class="fa-solid fa-file-invoice-dollar w-4 text-cyan-400"></i> Final Summary</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+            </button>
+        </div>
+
+        <!-- 🟢 [নতুন যুক্ত হওয়া মোবাইল এক্টিভ পেজ ইন্ডিকেটর] -->
+        <div
+            class="md:hidden bg-slate-900/90 border-t border-slate-700/60 px-4 py-1.5 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Active View:</span>
+            <span id="mobile-active-page-name" class="font-bold text-indigo-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-pie"></i> Dashboard
+            </span>
+        </div>
+    </header>
+
+    <!-- Admin Login Modal -->
+    <div id="admin-modal"
+        class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-full max-w-sm shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i
+                        class="fa-solid fa-user-shield text-indigo-400"></i> Admin Verification</h3>
+                <button onclick="closeAdminModal()" class="text-slate-400 hover:text-white"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-400">শুধুমাত্র অনুমোদিত এডমিন ডাটা এডিট ও সেভ করতে পারবেন।</p>
+            <div>
+                <label class="text-xs text-slate-300 block mb-1">Admin Passcode / PIN:</label>
+                <input type="password" id="admin-pin-input" placeholder="পিন কোড লিখুন (Default: 1234)"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeAdminModal()"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600">Cancel</button>
+                <button onclick="verifyAdmin()"
+                    class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MEMBER INDIVIDUAL DETAIL MODAL / PAGE -->
+    <!-- [FIXED] items-start এবং overflow-y-auto দেওয়া হয়েছে যাতে পুরো পেজ ফ্রিলি ওপর-নিচে স্ক্রল করা যায় -->
+    <div id="member-detail-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex justify-center items-start hidden p-2 sm:p-6 overflow-y-auto">
+
+        <!-- [FIXED] max-h এবং overflow-hidden বাদ দেওয়া হয়েছে যাতে নিচের দিকে কন্টেন্ট ব্লক না হয়ে যায় -->
+        <div
+            class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-visible my-4 pb-[70px] sm:my-8">
+
+            <!-- MODAL HEADER -->
+            <div class="p-4 bg-slate-900/80 border-b border-slate-700 flex justify-between items-center rounded-t-2xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg"
+                        id="modal-member-avatar">M</div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-100" id="modal-member-name">Member Name</h3>
+                        <p class="text-xs text-slate-400">Personal Ledger & Daily Attendance Summary</p>
+                    </div>
+                </div>
+                <button onclick="closeMemberModal()" class="text-slate-400 hover:text-white text-xl p-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- MODAL BODY (সবকটি সেকশনকে একটি সঠিক কন্টেইনারের ভেতরে রাখা হয়েছে) -->
+            <div class="p-3 sm:p-5 space-y-5 overflow-visible">
+
+                <!-- ১. MEMBER STATS SUMMARY CARDS (৬টি কার্ড) -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+
+                    <!-- Total Deposit -->
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[11px] sm:text-xs font-medium text-slate-400">Total Deposit</div>
+                        <div id="modal-member-deposit" class="text-base sm:text-lg font-bold text-slate-100 mt-0.5">৳0
+                        </div>
+                    </div>
+
+                    <!-- Total Meals -->
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[11px] sm:text-xs font-medium text-slate-400">Total Meals</div>
+                        <div id="modal-member-meals" class="text-base sm:text-lg font-bold text-amber-400 mt-0.5">0
+                        </div>
+                    </div>
+
+                    <!-- Meal Rate -->
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[11px] sm:text-xs font-medium text-slate-400">Meal Rate</div>
+                        <div id="modal-member-mealrate" class="text-base sm:text-lg font-bold text-cyan-400 mt-0.5">
+                            ৳0.00</div>
+                    </div>
+
+                    <!-- Extra Cost -->
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[11px] sm:text-xs font-medium text-slate-400">Extra Cost</div>
+                        <div id="modal-member-extracost" class="text-base sm:text-lg font-bold text-purple-400 mt-0.5">
+                            ৳0.00</div>
+                    </div>
+
+                    <!-- Total Cost -->
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[11px] sm:text-xs font-medium text-slate-400">Total Cost</div>
+                        <div id="modal-member-mealcost" class="text-base sm:text-lg font-bold text-rose-400 mt-0.5">৳0
+                        </div>
+                    </div>
+
+                    <!-- Balance Status -->
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[11px] sm:text-xs font-medium text-slate-400">Balance Status</div>
+                        <div id="modal-member-balance" class="text-base sm:text-lg font-bold text-emerald-400 mt-0.5">৳0
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ২. MENU CONSUMED SUMMARY -->
+                <div class="bg-slate-900/40 p-3.5 rounded-xl border border-slate-700/60">
+                    <h4
+                        class="text-xs font-bold text-indigo-300 mb-2.5 uppercase tracking-wide flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple"></i> Menu Consumed Summary (This Month)
+                    </h4>
+                    <div id="modal-member-menu-summary" class="flex flex-wrap gap-2 text-xs"></div>
+                </div>
+
+                <!-- ৩. DAILY MEAL & MENU BREAKDOWN TABLE -->
+                <div class="space-y-3">
+                    <h4 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-indigo-400"></i> Daily Meal & Menu Breakdown
+                    </h4>
+                    <div class="overflow-x-auto border border-slate-700/70 rounded-xl">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] ">
+                                <tr>
+                                    <th class="p-2.5">Day/Date</th>
+                                    <th class="p-2.5 text-center">Lunch</th>
+                                    <th class="p-2.5 text-center">Dinner</th>
+                                    <th class="p-2.5 text-center text-sm">Subtotal</th>
+                                    <th class="p-2.5">Lunch Menu</th>
+                                    <th class="p-2.5">Dinner Menu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-member-breakdown-body" class="divide-y divide-slate-700/50">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-6 flex-1 w-full">
+
+        <!-- DASHBOARD TAB -->
+        <section id="sec-dashboard" class="space-y-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-slate-800 p-4 sm:p-5 rounded-xl border border-slate-700 shadow-md">
+                    <div class="text-slate-400 text-xs sm:text-sm font-medium">Total Deposit</div>
+                    <div class="text-xl sm:text-3xl font-bold text-emerald-400 mt-1" id="dash-total-deposit">৳0</div>
+                    <p class="text-[10px] sm:text-xs text-slate-500 mt-1">All members combined</p>
+                </div>
+                <div class="bg-slate-800 p-4 sm:p-5 rounded-xl border border-slate-700 shadow-md">
+                    <div class="text-slate-400 text-xs sm:text-sm font-medium">Total Overall Expense</div>
+                    <div class="text-xl sm:text-3xl font-bold text-rose-400 mt-1" id="dash-total-expense">৳0</div>
+                    <p class="text-[10px] sm:text-xs text-slate-500 mt-1">Bazar + Extra Costs</p>
+                </div>
+                <div class="bg-slate-800 p-4 sm:p-5 rounded-xl border border-slate-700 shadow-md">
+                    <div class="text-slate-400 text-xs sm:text-sm font-medium">Cash in Hand</div>
+                    <div class="text-xl sm:text-3xl font-bold text-cyan-400 mt-1" id="dash-cash-in-hand">৳0</div>
+                    <p class="text-[10px] sm:text-xs text-slate-500 mt-1">Deposit - Total Expense</p>
+                </div>
+                <div class="bg-slate-800 p-4 sm:p-5 rounded-xl border border-slate-700 shadow-md">
+                    <div class="text-slate-400 text-xs sm:text-sm font-medium">Est. Meal Rate</div>
+                    <div class="text-xl sm:text-3xl font-bold text-amber-400 mt-1" id="dash-meal-rate">৳0</div>
+                    <p class="text-[10px] sm:text-xs text-slate-500 mt-1">Total Bazar / Total Meals</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-slate-800 p-4 sm:p-6 rounded-xl border border-slate-700 shadow-md">
+                    <h3 class="text-base sm:text-lg font-bold text-slate-200 mb-4 flex items-center gap-2"><i
+                            class="fa-solid fa-utensils text-indigo-400"></i> Monthly Meal Summary</h3>
+                    <div class="grid grid-cols-3 gap-2 sm:gap-4">
+                        <div class="bg-slate-900/60 p-3 sm:p-4 rounded-lg text-center border border-slate-700/50">
+                            <i class="fa-solid fa-sun text-amber-400 text-lg sm:text-xl mb-1"></i>
+                            <div class="text-[10px] sm:text-xs text-slate-400">Lunch Meals</div>
+                            <div class="text-lg sm:text-2xl font-bold text-slate-100 mt-1" id="dash-total-lunch">0</div>
+                        </div>
+                        <div class="bg-slate-900/60 p-3 sm:p-4 rounded-lg text-center border border-slate-700/50">
+                            <i class="fa-solid fa-moon text-indigo-400 text-lg sm:text-xl mb-1"></i>
+                            <div class="text-[10px] sm:text-xs text-slate-400">Dinner Meals</div>
+                            <div class="text-lg sm:text-2xl font-bold text-slate-100 mt-1" id="dash-total-dinner">0
+                            </div>
+                        </div>
+                        <div class="bg-slate-900/60 p-3 sm:p-4 rounded-lg text-center border border-slate-700/50">
+                            <i class="fa-solid fa-bowl-rice text-emerald-400 text-lg sm:text-xl mb-1"></i>
+                            <div class="text-[10px] sm:text-xs text-slate-400">Total Meals</div>
+                            <div class="text-lg sm:text-2xl font-bold text-emerald-400 mt-1" id="dash-total-meals">0
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-slate-800 p-4 sm:p-6 rounded-xl border border-slate-700 shadow-md flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-200 mb-2 flex items-center gap-2"><i
+                                class="fa-solid fa-spray-can-sparkles text-pink-400"></i> Extra Mess Costs</h3>
+                        <p class="text-xs text-slate-400 mb-4">Cleaner, Hand-Wash & Extra items</p>
+                        <div class="text-2xl sm:text-3xl font-bold text-pink-400" id="dash-extra-total">৳0</div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-700 text-xs text-slate-400 flex justify-between">
+                        <span>Per Member Split (<span id="dash-extra-member-count">0</span>):</span>
+                        <span class="font-bold text-slate-200" id="dash-extra-per-member">৳0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-4 sm:p-6 rounded-xl border border-slate-700 shadow-md space-y-3">
+                <h3 class="text-base sm:text-lg font-bold text-slate-200 flex items-center gap-2"><i
+                        class="fa-solid fa-utensils text-amber-400"></i> Monthly Menu Consumption Breakdown</h3>
+                <p class="text-xs text-slate-400">এই মাসে মেসে কোনো মেনুর খাবার মোট কতটি খাওয়া হয়েছে তার অটোমেটিক হিসাব:
+                </p>
+                <div id="dash-menu-consumption-container"
+                    class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 pt-2"></div>
+            </div>
+        </section>
+
+        <!-- DAILY MEAL SHEET TAB -->
+        <section id="sec-daily-meal" class="hidden space-y-6">
+            <div class="bg-slate-800 p-4 sm:p-5 rounded-xl border border-slate-700 shadow-md space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-200 flex items-center gap-2"><i
+                                class="fa-solid fa-calendar-day text-amber-400"></i> Daily Meal & Menu Tracker</h2>
+                        <p class="text-xs text-slate-400">তারিখ নির্বাচন করে মেসে থাকা সকল মেম্বারের মিল ও মেনু এন্ট্রি
+                            করুন।</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 p-2 rounded-lg">
+                        <label for="daily-date-select" class="text-xs text-slate-300 font-semibold">তারিখ:</label>
+                        <select id="daily-date-select" onchange="renderDailyMealTab()"
+                            class="bg-slate-800 text-xs font-bold text-amber-400 rounded px-2 py-1 outline-none"></select>
+                    </div>
+                </div>
+
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-sun text-amber-400 text-sm"></i>
+                        <span class="text-xs font-semibold text-slate-300 w-24">Lunch Menu:</span>
+                        <select id="daily-lunch-menu" onchange="updateDailyMenu()"
+                            class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded p-1.5 flex-1 focus:outline-none">
+                            <option value="Null">Null</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Chicken">Chicken</option>
+                            <option value="Fish + Veg">Fish + Veg</option>
+                            <option value="Eggs + Veg">Eggs + Veg</option>
+                            <option value="Vegetable + Bhaji">Vegetable + Bhaji</option>
+                            <option value="Kichuri + Egg">Kichuri + Egg</option>
+                            <option value="Chula + Muri">Chula + Muri</option>
+                            <option value="Biriyani">Biriyani</option>
+                            <option value="Nasta-Party">Nasta-Party</option>
+                            <option value="দই-চিড়া">দই-চিড়া</option>
+                            <option value="Not Cooked">Not Cooked</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-moon text-indigo-400 text-sm"></i>
+                        <span class="text-xs font-semibold text-slate-300 w-24">Dinner Menu:</span>
+                        <select id="daily-dinner-menu" onchange="updateDailyMenu()"
+                            class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded p-1.5 flex-1 focus:outline-none">
+                            <option value="Null">Null</option>
+                            <option value="Fixed">Fixed</option>
+                            <option value="Chicken">Chicken</option>
+                            <option value="Fish + Veg">Fish + Veg</option>
+                            <option value="Eggs + Veg">Eggs + Veg</option>
+                            <option value="Vegetable + Bhaji">Vegetable + Bhaji</option>
+                            <option value="Kichuri + Egg">Kichuri + Egg</option>
+                            <option value="Chula + Muri">Chula + Muri</option>
+                            <option value="Biriyani">Biriyani</option>
+                            <option value="Nasta-Party">Nasta-Party</option>
+                            <option value="দই-চিড়া">দই-চিড়া</option>
+                            <option value="Not Cooked">Not Cooked</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- min-w-[500px] তুলে দিয়ে overflow-x-hidden এবং w-full করা হয়েছে -->
+                <div class="w-full overflow-x-hidden border border-slate-700/60 rounded-xl">
+                    <!-- table-fixed এবং p-1.5/p-2 দিয়ে প্যাডিং ছোট করা হয়েছে -->
+                    <table class="w-full table-fixed text-left text-[11px] sm:text-xs text-slate-300">
+                        <thead class="bg-slate-900 text-slate-400 font-semibold uppercase text-[9px] sm:text-[10px]">
+                            <tr>
+                                <!-- Member Name কলাম একটু চওড়া রাখা হয়েছে -->
+                                <th class="p-1.5 sm:p-2.5 w-[30%]">Member Name</th>
+                                <th class="p-1.5 sm:p-2.5 text-center w-[18%]">Lunch</th>
+                                <th class="p-1.5 sm:p-2.5 text-center w-[18%]">Dinner</th>
+                                <th class="p-1.5 sm:p-2.5 text-center w-[18%]">Total</th>
+                                <th class="p-1.5 sm:p-2.5 text-right w-[16%]">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daily-meal-table-body" class="divide-y divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="submitDailyMeals()"
+                        class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl shadow-lg hover:shadow-emerald-600/30 transition flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i> Submit / Save Entry
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- MEMBERS TAB -->
+        <section id="sec-members" class="hidden space-y-6">
+            <div
+                class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-200">Member Accounts & Daily Ledger</h2>
+                    <p class="text-xs text-slate-400">নামের ওপর ক্লিক করে ব্যক্তিগত বিস্তারিত দেখুন (এডমিন মোডে মিল ও
+                        জমা এডিট করুন)</p>
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto admin-only hidden">
+                    <input type="text" id="new-member-name" placeholder="Member Name"
+                        class="bg-slate-900 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm focus:outline-none focus:border-indigo-500 w-full md:w-48">
+                    <button onclick="addMember()"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1 whitespace-nowrap shadow-md">
+                        <i class="fa-solid fa-user-plus"></i> Add Member
+                    </button>
+                </div>
+            </div>
+
+            <!-- [UPDATED] grid-cols-1 সরিয়ে grid-cols-2 করা হয়েছে এবং গ্যাপ কমানো হয়েছে -->
+            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4" id="members-container"></div>
+        </section>
+
+        <!-- BAZAR & EXTRA EXPENSES TAB -->
+        <section id="sec-bazar" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- MONTHLY BAZAR LIST -->
+                <div class="bg-slate-800 p-4 sm:p-6 rounded-xl border border-slate-700 shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-base sm:text-lg font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-basket-shopping text-emerald-400"></i> Monthly Bazar List
+                        </h3>
+                        <button onclick="addBazarRow()"
+                            class="admin-only hidden bg-indigo-600 hover:bg-indigo-500 text-xs text-white px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition">
+                            <i class="fa-solid fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                    <div class="w-full">
+                        <table class="w-full text-left text-xs sm:text-sm text-slate-300 table-fixed">
+                            <thead class="bg-slate-900/60 uppercase text-slate-400 text-[10px] sm:text-xs">
+                                <tr>
+                                    <th class="p-1 sm:p-2.5">Item Name</th>
+                                    <th class="p-1 sm:p-2.5 w-24 sm:w-32">Date</th>
+                                    <th class="p-1 sm:p-2.5 w-14 sm:w-20">Qty/Size</th>
+                                    <th class="p-1 sm:p-2.5 w-20 sm:w-28">Cost (৳)</th>
+                                    <th class="p-1 sm:p-2 w-6 sm:w-8 admin-only hidden"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bazar-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="mt-4 pt-3 border-t border-slate-700 flex justify-between font-bold text-sm text-slate-200">
+                        <span>Total Bazar Cost:</span>
+                        <span class="text-emerald-400" id="bazar-total-display">৳0</span>
+                    </div>
+                </div>
+
+                <!-- EXTRA MESS EXPENSES -->
+                <div class="bg-slate-800 p-4 sm:p-6 rounded-xl border border-slate-700 shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-pump-soap text-pink-400"></i> Extra Mess Expenses
+                            </h3>
+                            <p class="text-[10px] sm:text-xs text-slate-400">Cleaner, Handwash, WiFi etc.</p>
+                        </div>
+                        <button onclick="addExtraRow()"
+                            class="admin-only hidden bg-pink-600 hover:bg-pink-500 text-xs text-white px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition">
+                            <i class="fa-solid fa-plus"></i> Add Extra
+                        </button>
+                    </div>
+                    <div class="w-full">
+                        <table class="w-full text-left text-xs sm:text-sm text-slate-300 table-fixed">
+                            <thead class="bg-slate-900/60 uppercase text-slate-400 text-[10px] sm:text-xs">
+                                <tr>
+                                    <th class="p-1 sm:p-2.5">Extra Item</th>
+                                    <th class="p-1 sm:p-2.5 w-24 sm:w-32">Date</th>
+                                    <th class="p-1 sm:p-2.5 w-14 sm:w-20">Qty</th>
+                                    <th class="p-1 sm:p-2.5 w-20 sm:w-28">Cost (৳)</th>
+                                    <th class="p-1 sm:p-2 w-6 sm:w-8 admin-only hidden"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="extra-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="mt-4 pt-3 border-t border-slate-700 flex justify-between font-bold text-sm text-slate-200">
+                        <span>Total Extra Expenses:</span>
+                        <span class="text-pink-400" id="extra-total-display">৳0</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FINAL SUMMARY TAB SECTION -->
+        <section id="sec-summary" class="hidden space-y-6">
+            <div class="bg-slate-800 p-3 sm:p-6 rounded-xl border border-slate-700 shadow-md">
+
+                <!-- [এখান থেকে শুরু] হেডার এবং ডাউনলোড বাটন অংশ -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+                    <div>
+                        <h2 class="text-base sm:text-xl font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice-dollar text-cyan-400"></i> Monthly Final Summary Report
+                        </h2>
+                        <p class="text-xs text-slate-400">মাসের শেষের সমস্ত মেম্বারের চূড়ান্ত জমা, খরচ ও লেনদেনের হিসাব
+                            (<span class="text-indigo-400 font-bold text-sm" id="summary-month-name">August</span>)</p>
+                    </div>
+
+                    <!-- [NEW] শুধু এডমিন দেখতে পাবে এবং ডাউনলোড/প্রিন্ট করতে পারবে -->
+                    <div class="admin-only hidden">
+                        <button onclick="downloadSummaryPDF()"
+                            class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow-md transition cursor-pointer">
+                            <i class="fa-solid fa-download"></i> Download Report / PDF
+                        </button>
+                    </div>
+                </div>
+                <!-- [এখানে শেষ] -->
+
+                <!-- এর নিচে আপনার আগের ডেসকটপ টেবিল (<div class="hidden md:block...">) এবং মোবাইল কার্ড কন্টেইনারগুলো যেভাবে ছিল সেভাবেই থাকবে -->
+
+
+                <!-- ১. ডেসকটপ ভিউ (বড় স্ক্রিনে টেবিল দেখাবে, মোবাইলে হাইড থাকবে) -->
+                <div
+                    class="hidden md:block overflow-x-auto max-h-[70vh] border border-slate-700/60 rounded-xl relative">
+                    <table class="w-full text-left text-xs sm:text-sm text-slate-300 min-w-[950px] border-collapse">
+                        <!-- STICKY HEADER FIXED HERE -->
+                        <thead
+                            class="bg-slate-900 text-slate-400 font-semibold uppercase text-[10px] sm:text-xs sticky top-0 z-20 shadow-md">
+                            <tr>
+                                <th class="p-3 bg-slate-900">Member Name</th>
+                                <th class="p-3 text-center bg-slate-900">Deposit</th>
+                                <th class="p-3 text-center bg-slate-900">Total Meal</th>
+                                <th class="p-3 text-center bg-slate-900">Meal Rate</th>
+                                <th class="p-3 text-center bg-slate-900">Meal Cost</th>
+                                <th class="p-3 text-center bg-slate-900">Extra Cost</th>
+                                <th class="p-3 text-center bg-slate-900">Total All Cost</th>
+                                <th class="p-3 text-right bg-slate-900">Final Status / Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-table-body" class="divide-y divide-slate-700/50">
+                            <!-- JS দিয়ে ডেসকটপ টেবিল লোড হবে -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ২. মোবাইল ভিউ (ছোট স্ক্রিনে কোনো স্ক্রোলবার থাকবে না, রেসপনসিভ কার্ড আকারে দেখাবে) -->
+                <div id="summary-mobile-cards" class="block md:hidden space-y-3">
+                    <!-- JS দিয়ে মোবাইল কার্ড লোড হবে -->
+                </div>
+
+                <p class="text-[11px] text-slate-400 mt-4 text-right">
+                    <i class="fa-solid fa-circle-info text-indigo-400"></i> দেনা/পাওনা লেনদেন শেষ হলে বক্সে ডিলিট করে
+                    <b>0</b> বা <b>00</b> বসালেই অটোমেটিক <b>GOOD FINISH</b> শো করবে।
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 border-t border-slate-700 py-4 text-center text-xs text-slate-500">
+        Bachelor Brotherhood &copy; 2026 - Uttara, Dhaka, Bangladesh.
+    </footer>
+
+    <!-- Custom JavaScript Link -->
+    <script src="script.js"></script>
+</body>
+
+</html>

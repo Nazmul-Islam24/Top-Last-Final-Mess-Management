@@ -1,0 +1,1244 @@
+// Google Sheets Webhook App URL
+const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzvy45mhfcw1qkBirPMAy4v2_MF8Py-iqaxa3JX5wsa8MHBsuraeSUNbsl2rlgyHe26RQ/exec";
+
+// Admin Credentials Setup
+const ADMIN_EMAIL = "nzlpatwary901@gmail.com";
+const ADMIN_PIN = "1234";
+let isAdmin = false;
+
+// Initial Default State
+const defaultState = {
+    selectedMonth: "January",
+    members: [
+        { id: 1, name: "Bachelor 1", deposit: 0 },
+        { id: 2, name: "Bachelor 2", deposit: 0 },
+        { id: 3, name: "Bachelor 3", deposit: 0 },
+        { id: 4, name: "Bachelor 4", deposit: 0 },
+    ],
+    bazar: [
+    ],
+    extra: [
+    ],
+    dailyMeals: {}
+};
+
+let state = JSON.parse(JSON.stringify(defaultState));
+
+// [UPDATE] Submit বাটনে চাপ দেওয়ার আগ পর্যন্ত অস্থায়ী ডাটা ধরে রাখার জন্য Variable
+let tempDailyMeals = {};
+
+
+// Initialize App
+window.addEventListener('DOMContentLoaded', () => {
+    loadSavedData();
+    setupMonthSelector();
+    populateDailyDateSelector();
+    renderAll();
+    updateAdminUI();
+});
+
+function renderAll() {
+    renderDailyMealTab();
+    renderMembers();
+    renderBazar();
+    renderExtra();
+    renderSearchDropdown();
+    calculateAll();
+    renderSummary();
+}
+
+// AUTOMATIC MEMBER SEARCH DROPDOWN RENDER
+function renderSearchDropdown() {
+    const select = document.getElementById('global-member-search');
+    const mobileSelect = document.getElementById('global-member-search-mobile');
+
+    const optionsHtml = '<option value="" disabled selected>🔍 Select Member / Search Name...</option>' +
+        state.members.map(m => `<option value="${m.id}" class="bg-slate-800 text-slate-100 font-medium py-1">👤 ${m.name}</option>`).join('');
+
+    if (select) select.innerHTML = optionsHtml;
+    if (mobileSelect) mobileSelect.innerHTML = optionsHtml;
+}
+
+function handleMemberSelect(memberId) {
+    if (memberId) {
+        openMemberModal(Number(memberId));
+        setTimeout(() => {
+            const select = document.getElementById('global-member-search');
+            const mobileSelect = document.getElementById('global-member-search-mobile');
+
+            if (select) select.value = "";
+            if (mobileSelect) mobileSelect.value = "";
+        }, 500);
+    }
+}
+
+// Month Selector Handler
+function setupMonthSelector() {
+    const monthDropdown = document.getElementById('selected-month');
+    if (monthDropdown) {
+        if (state.selectedMonth) monthDropdown.value = state.selectedMonth;
+        monthDropdown.addEventListener('change', (e) => {
+            state.selectedMonth = e.target.value;
+            saveData(false);
+            renderAll();
+        });
+    }
+}
+
+// Populate 1 to 31 Days in Daily Sheet
+function populateDailyDateSelector() {
+    const select = document.getElementById('daily-date-select');
+    if (!select) return;
+    select.innerHTML = '';
+    for (let day = 1; day <= 31; day++) {
+        const opt = document.createElement('option');
+        opt.value = day;
+        opt.innerText = `Day ${day}`;
+        select.appendChild(opt);
+    }
+}
+
+// Admin Verification Functions
+function openAdminModal() {
+    if (isAdmin) {
+        isAdmin = false;
+        alert("আপনি এডমিন মোড থেকে লগআউট করেছেন।");
+        updateAdminUI();
+        renderAll();
+    } else {
+        document.getElementById('admin-modal').classList.remove('hidden');
+    }
+}
+
+function closeAdminModal() {
+    document.getElementById('admin-modal').classList.add('hidden');
+    document.getElementById('admin-pin-input').value = '';
+}
+
+function verifyAdmin() {
+    const inputPin = document.getElementById('admin-pin-input').value;
+    if (inputPin === ADMIN_PIN) {
+        isAdmin = true;
+        alert(`এডমিন হিসেবে লগইন সফল হয়েছে! (${ADMIN_EMAIL})`);
+        closeAdminModal();
+        updateAdminUI();
+        renderAll();
+    } else {
+        alert("ভুল পিন কোড! শুধুমাত্র এডমিন এডিট করতে পারবেন।");
+    }
+}
+
+function updateAdminUI() {
+    const btnText = document.getElementById('admin-btn-text');
+    const adminControls = document.getElementById('admin-controls');
+    const adminOnlyElems = document.querySelectorAll('.admin-only');
+
+    if (isAdmin) {
+        if (btnText) btnText.innerText = "Logout Admin";
+        if (adminControls) adminControls.classList.remove('hidden');
+        adminOnlyElems.forEach(el => el.classList.remove('hidden'));
+    } else {
+        if (btnText) btnText.innerText = "Admin Login";
+        if (adminControls) adminControls.classList.add('hidden');
+        adminOnlyElems.forEach(el => el.classList.add('hidden'));
+    }
+}
+
+// ১. পেজের নাম ও আইকন ম্যাপ (Members-এ showCount যোগ করা হয়েছে)
+const pageDetails = {
+    'dashboard': { name: 'Dashboard', icon: 'fa-chart-pie', color: 'text-indigo-400' },
+    'daily-meal': { name: 'Daily Meal Sheet', icon: 'fa-calendar-check', color: 'text-amber-400' },
+    'members': { name: 'Members', icon: 'fa-users', color: 'text-emerald-400', showCount: true },
+    'bazar': { name: 'Bazar & Extra Expenses', icon: 'fa-cart-shopping', color: 'text-sky-400' },
+    'summary': { name: 'Final Summary', icon: 'fa-file-invoice-dollar', color: 'text-cyan-400' }
+};
+
+// ২. কারেন্ট পেজের নাম ও মেম্বার সংখ্যা আপডেট করার হেল্পার ফাংশন
+function updateMobilePageIndicator(tabName) {
+    const indicator = document.getElementById('mobile-active-page-name');
+    if (!indicator || !pageDetails[tabName]) return;
+
+    const page = pageDetails[tabName];
+
+    // মেম্বার সংখ্যা বের করার লজিক (state.members থেকে সংখ্যাটি নেবে)
+    let countText = '';
+    if (page.showCount && typeof state !== 'undefined' && state.members) {
+        countText = ` (${state.members.length})`;
+    }
+
+    indicator.innerHTML = `<i class="fa-solid ${page.icon} ${page.color}"></i> ${page.name}${countText}`;
+}
+
+// মেম্বার সংখ্যা আপডেট হলে ছোট স্ক্রিনের কাউন্ট রিফ্রেশ করার ফাংশন
+function refreshMobileIndicatorCount() {
+    const activeTab = ['dashboard', 'daily-meal', 'members', 'bazar', 'summary'].find(t => {
+        const sec = document.getElementById(`sec-${t}`);
+        return sec && !sec.classList.contains('hidden');
+    }) || 'dashboard';
+
+    updateMobilePageIndicator(activeTab);
+}
+
+
+
+// Tab Switching System (আপডেট করা হয়েছে)
+function switchTab(tabName) {
+    ['dashboard', 'daily-meal', 'members', 'bazar', 'summary'].forEach(t => {
+        const sec = document.getElementById(`sec-${t}`);
+        const tab = document.getElementById(`tab-${t}`);
+        if (sec) sec.classList.add('hidden');
+        if (tab) {
+            tab.classList.remove('border-indigo-500', 'text-indigo-400');
+            tab.classList.add('border-transparent', 'text-slate-400');
+        }
+    });
+    const activeSec = document.getElementById(`sec-${tabName}`);
+    const activeTab = document.getElementById(`tab-${tabName}`);
+    if (activeSec) activeSec.classList.remove('hidden');
+    if (activeTab) {
+        activeTab.classList.add('border-indigo-500', 'text-indigo-400');
+        activeTab.classList.remove('border-transparent', 'text-slate-400');
+    }
+
+    // 🟢 মোবাইল ভিউতে পেজের নাম, আইকন ও মেম্বার সংখ্যা আপডেট করবে
+    updateMobilePageIndicator(tabName);
+}
+
+// মোবাইল ড্রপডাউন থেকে ট্যাবে ক্লিক করলে সুইচ হয়ে মেনু বন্ধ হওয়া
+function switchTabMobile(tabName) {
+    if (typeof switchTab === 'function') {
+        switchTab(tabName);
+    }
+    toggleMobileMenu();
+}
+
+// DAILY MEAL SHEET HANDLERS
+// ==========================================
+// [UPDATED] DAILY MEAL SHEET HANDLERS
+// ==========================================
+
+function renderDailyMealTab() {
+    const day = document.getElementById('daily-date-select')?.value || "1";
+
+    // [UPDATE] সাবমিটের আগে অরিজিনাল ডাটা না বদলে টেম্পোরারি অবজেক্টে ডাটা কপি করে নেওয়া হচ্ছে
+    if (!tempDailyMeals[day]) {
+        if (state.dailyMeals[day]) {
+            tempDailyMeals[day] = JSON.parse(JSON.stringify(state.dailyMeals[day]));
+        } else {
+            tempDailyMeals[day] = {
+                lunchMenu: "Fixed",
+                dinnerMenu: "Fixed",
+                meals: {}
+            };
+        }
+    }
+
+    const dayData = tempDailyMeals[day];
+    const lMenu = document.getElementById('daily-lunch-menu');
+    const dMenu = document.getElementById('daily-dinner-menu');
+    if (lMenu) lMenu.value = dayData.lunchMenu || "Fixed";
+    if (dMenu) dMenu.value = dayData.dinnerMenu || "Fixed";
+
+    const tbody = document.getElementById('daily-meal-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const disabledAttr = isAdmin ? '' : 'disabled';
+    let totalDayLunch = 0;
+    let totalDayDinner = 0;
+    let grandTotalDayMeals = 0;
+
+    state.members.forEach(m => {
+        if (!dayData.meals[m.id]) {
+            dayData.meals[m.id] = { lunch: 0, dinner: 0 };
+        }
+        const mMeal = dayData.meals[m.id];
+        const lunchVal = Number(mMeal.lunch) || 0;
+        const dinnerVal = Number(mMeal.dinner) || 0;
+        const totalDayMeal = lunchVal + dinnerVal;
+
+        totalDayLunch += lunchVal;
+        totalDayDinner += dinnerVal;
+        grandTotalDayMeals += totalDayMeal;
+
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-slate-700/50 hover:bg-slate-800/40 transition";
+
+        // [UPDATED] p-3 কমিয়ে p-1.5 sm:p-2.5 এবং input width w-16 কমিয়ে w-10 sm:w-14 করা হয়েছে
+        tr.innerHTML = `
+            <td class="p-1.5 sm:p-2.5 font-bold text-xs sm:text-sm text-slate-100 cursor-pointer hover:text-indigo-400 truncate" onclick="openMemberModal(${m.id})">
+                <i class="fa-solid fa-user text-indigo-400 mr-1 text-[11px] sm:text-xs"></i> ${m.name}
+            </td>
+            <td class="p-1.5 sm:p-2.5 text-center">
+                <input type="number" min="0" step="0.5" value="${mMeal.lunch}" ${disabledAttr}
+                    onchange="updateTempDailyMealCount('${day}', ${m.id}, 'lunch', this.value)"
+                    class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-amber-400 focus:outline-none focus:border-indigo-500">
+            </td>
+            <td class="p-1.5 sm:p-2.5 text-center">
+                <input type="number" min="0" step="0.5" value="${mMeal.dinner}" ${disabledAttr}
+                    onchange="updateTempDailyMealCount('${day}', ${m.id}, 'dinner', this.value)"
+                    class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-indigo-400 focus:outline-none focus:border-indigo-500">
+            </td>
+            <td class="p-1.5 sm:p-2.5 text-center font-extrabold text-emerald-400 text-xs sm:text-sm">
+                ${totalDayMeal}
+            </td>
+            <td class="p-1.5 sm:p-2.5 text-right">
+                <button onclick="openMemberModal(${m.id})" class="text-[11px] sm:text-xs text-indigo-400 hover:text-indigo-300">
+                    <i class="fa-solid fa-eye mr-0.5"></i> <span class="hidden sm:inline">Details</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // টোটাল রো যোগ করা (UPDATED padding)
+    const totalTr = document.createElement('tr');
+    totalTr.className = "bg-slate-900/90 font-bold border-t border-slate-700";
+    totalTr.innerHTML = `
+        <td class="p-1.5 sm:p-2.5 text-[10px] sm:text-xs uppercase text-slate-400 truncate">Total:</td>
+        <td class="p-1.5 sm:p-2.5 text-center text-amber-400 font-extrabold text-xs sm:text-sm">${totalDayLunch}</td>
+        <td class="p-1.5 sm:p-2.5 text-center text-indigo-400 font-extrabold text-xs sm:text-sm">${totalDayDinner}</td>
+        <td class="p-1.5 sm:p-2.5 text-center text-emerald-400 font-extrabold text-xs sm:text-sm">${grandTotalDayMeals}</td>
+        <td></td>
+    `;
+    tbody.appendChild(totalTr);
+}
+
+// [NEW] ইনপুটে টাইপ বা চেঞ্জ করলে শুধুমাত্র টেম্পোরারি অবজেক্টে আপডেট হবে
+function updateTempDailyMealCount(day, memberId, type, val) {
+    if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Fixed", dinnerMenu: "Fixed", meals: {} };
+    if (!tempDailyMeals[day].meals[memberId]) tempDailyMeals[day].meals[memberId] = { lunch: 0, dinner: 0 };
+
+    tempDailyMeals[day].meals[memberId][type] = Number(val) || 0;
+
+    // টেম্পোরারি ডাটা দিয়ে কেবল ওই টেবিলটা রিফ্রেশ করা হবে, মূল হিসেব বা প্রোফাইলে আপডেট যাবে না
+    renderDailyMealTab();
+}
+
+// [NEW] মেনু সিলেক্ট করলে টেম্পোরারিতে সেভ রাখা
+function updateDailyMenu() {
+    const day = document.getElementById('daily-date-select')?.value || "1";
+    const lMenu = document.getElementById('daily-lunch-menu')?.value || "Fixed";
+    const dMenu = document.getElementById('daily-dinner-menu')?.value || "Fixed";
+
+    if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Fixed", dinnerMenu: "Fixed", meals: {} };
+
+    tempDailyMeals[day].lunchMenu = lMenu;
+    tempDailyMeals[day].dinnerMenu = dMenu;
+}
+
+// ==========================================
+// [UPDATED] SUBMIT BUTTON HANDLER
+// ==========================================
+function submitDailyMeals() {
+    if (!isAdmin) {
+        alert("শুধুমাত্র অনুমোদিত এডমিন ডাটা সেভ বা সাবমিট করতে পারবেন।");
+        return;
+    }
+
+    const day = document.getElementById('daily-date-select')?.value || "1";
+
+    // [UPDATE] সাবমিট বাটনে চাপ দেওয়া মাত্রই টেম্পোরারি ডাটা মূল state এ যুক্ত হবে
+    if (tempDailyMeals[day]) {
+        state.dailyMeals[day] = JSON.parse(JSON.stringify(tempDailyMeals[day]));
+    }
+
+    // ডাটা সেভ করা হচ্ছে LocalStorage / Cloud-এ
+    saveData(true);
+
+    // মেইন ড্যাশবোর্ড, সমাপনী হিসাব এবং প্রোফাইলের সমস্ত ডাটা রি-রেন্ডার করা
+    renderAll();
+
+    alert(`Day ${day} এর মিল ডাটা সফলভাবে প্রোফাইলে যুক্ত এবং সেভ হয়েছে!`);
+}
+
+// INDIVIDUAL MEMBER DETAILS PAGE / MODAL HANDLERS
+function openMemberModal(memberId) {
+    const member = state.members.find(m => m.id === memberId);
+    if (!member) return;
+
+    let memberLunch = 0;
+    let memberDinner = 0;
+    const menuCounts = {};
+
+    const breakdownBody = document.getElementById('modal-member-breakdown-body');
+    if (breakdownBody) breakdownBody.innerHTML = '';
+
+    const activeDays = Object.keys(state.dailyMeals).map(Number).sort((a, b) => a - b);
+    activeDays.forEach(day => {
+        const dayInfo = state.dailyMeals[day];
+        if (!dayInfo) return;
+        const mMeal = dayInfo.meals?.[memberId] || { lunch: 0, dinner: 0 };
+        const l = Number(mMeal.lunch) || 0;
+        const d = Number(mMeal.dinner) || 0;
+        memberLunch += l;
+        memberDinner += d;
+
+        const rawLunchMenu = dayInfo.lunchMenu || 'Fixed';
+        const rawDinnerMenu = dayInfo.dinnerMenu || 'Fixed';
+
+        // [UPDATED LOGIC HERE] মিল ০ হলে এবং মেনু 'Not Cooked' হলে 'Not Cooked' দেখাবে, অন্যথায় 'Null'
+        let lunchMenuName = '';
+        if (l > 0) {
+            lunchMenuName = rawLunchMenu;
+        } else if (rawLunchMenu === "Not Cooked") {
+            lunchMenuName = '<span class="text-[11px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-semibold">Not Cooked</span>';
+        } else {
+            lunchMenuName = '<span class="text-slate-500 italic">Null</span>';
+        }
+
+        let dinnerMenuName = '';
+        if (d > 0) {
+            dinnerMenuName = rawDinnerMenu;
+        } else if (rawDinnerMenu === "Not Cooked") {
+            dinnerMenuName = '<span class="text-[11px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-semibold">Not Cooked</span>';
+        } else {
+            dinnerMenuName = '<span class="text-slate-500 italic">Null</span>';
+        }
+
+        // মিল ১ বা তার বেশি হলে সামারির জন্য কাউন্ট রাখা
+        if (l > 0) {
+            menuCounts[rawLunchMenu] = (menuCounts[rawLunchMenu] || 0) + l;
+        }
+        if (d > 0) {
+            menuCounts[rawDinnerMenu] = (menuCounts[rawDinnerMenu] || 0) + d;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-700/30 border-b border-slate-700/30";
+        tr.innerHTML = `
+            <td class="p-2.5 font-semibold text-slate-300">Day ${day} (${state.selectedMonth})</td>
+            <td class="p-2.5 text-center font-bold text-amber-400">${l}</td>
+            <td class="p-2.5 text-center font-bold text-indigo-400">${d}</td>
+            <td class="p-2.5 text-center font-bold text-emerald-400 text-sm">${l + d}</td>
+            
+            <td class="p-2.5 text-slate-300">${lunchMenuName}</td>
+            <td class="p-2.5 text-slate-300">${dinnerMenuName}</td>
+        `;
+        if (breakdownBody) breakdownBody.appendChild(tr);
+    });
+
+    const menuSummaryEl = document.getElementById('modal-member-menu-summary');
+    if (menuSummaryEl) {
+        menuSummaryEl.innerHTML = '';
+        const entries = Object.entries(menuCounts);
+        if (entries.length === 0) {
+            menuSummaryEl.innerHTML = '<span class="text-slate-500 italic">No meals eaten yet</span>';
+        } else {
+            entries.forEach(([menuName, count]) => {
+                const badge = document.createElement('span');
+                badge.className = "bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-xs";
+                badge.innerHTML = `<span>${menuName}:</span> <strong class="text-amber-400 font-black">${count}</strong>`;
+                menuSummaryEl.appendChild(badge);
+            });
+        }
+    }
+
+    const totalMeals = memberLunch + memberDinner;
+    let totalBazar = state.bazar.reduce((acc, c) => acc + (evaluateCostInput(c.cost) || 0), 0);
+    let totalExtra = state.extra.reduce((acc, c) => acc + (evaluateCostInput(c.cost) || 0), 0);
+    let globalTotalMeals = 0;
+
+    Object.values(state.dailyMeals).forEach(d => {
+        Object.values(d.meals || {}).forEach(m => {
+            globalTotalMeals += (Number(m.lunch) || 0) + (Number(m.dinner) || 0);
+        });
+    });
+
+    const mealRate = globalTotalMeals > 0 ? (totalBazar / globalTotalMeals) : 0;
+    const extraShare = state.members.length > 0 ? (totalExtra / state.members.length) : 0;
+    const mealCost = totalMeals * mealRate;
+    const totalCost = mealCost + extraShare;
+
+    const evaluatedDeposit = evaluateCostInput(member.deposit);
+    const balance = evaluatedDeposit - totalCost;
+
+    document.getElementById('modal-member-name').innerText = member.name;
+    document.getElementById('modal-member-avatar').innerText = member.name.charAt(0).toUpperCase();
+    document.getElementById('modal-member-deposit').innerText = `৳${evaluatedDeposit.toLocaleString()}`;
+    document.getElementById('modal-member-meals').innerText = `${totalMeals} (${memberLunch}L + ${memberDinner}D)`;
+
+    document.getElementById('modal-member-mealrate').innerText = `৳${mealRate.toFixed(2)}`;
+    document.getElementById('modal-member-extracost').innerText = `৳${extraShare.toFixed(1)}`;
+
+    document.getElementById('modal-member-mealcost').innerText = `৳${totalCost.toFixed(1)}`;
+
+    const balEl = document.getElementById('modal-member-balance');
+    balEl.innerText = `৳${balance.toFixed(1)}`;
+    balEl.className = balance >= 0 ? "text-xl font-black text-emerald-400" : "text-xl font-black text-rose-400";
+
+    document.getElementById('member-detail-modal').classList.remove('hidden');
+}
+
+function closeMemberModal() {
+    document.getElementById('member-detail-modal').classList.add('hidden');
+}
+
+// MEMBERS TAB MANAGEMENT
+function renderMembers() {
+    // 🟢 নতুন যুক্ত করুন (মোবাইলের এক্টিভ পেজ কাউন্টার আপডেট করার জন্য)
+    if (typeof refreshMobileIndicatorCount === 'function') refreshMobileIndicatorCount();
+
+    const container = document.getElementById('members-container');
+    if (!container) return;
+
+    // 👇 এই দুই লাইন যুক্ত করুন (ডেস্কটপ ও মোবাইল কাউন্টার আপডেট করার জন্য)
+    const countEl = document.getElementById('tab-member-count');
+    const mobileCountEl = document.getElementById('mobile-tab-member-count');
+    if (countEl) countEl.innerText = state.members.length;
+    if (mobileCountEl) mobileCountEl.innerText = state.members.length;
+
+    container.innerHTML = '';
+
+    const disabledAttr = isAdmin ? '' : 'disabled';
+    state.members.forEach((m, idx) => {
+        const card = document.createElement('div');
+
+        // [UPDATED] p-4 কমিয়ে p-2.5 sm:p-4 এবং space-y-3 কমিয়ে space-y-2 করা হয়েছে
+        card.className = "bg-slate-800 p-2.5 sm:p-4 rounded-xl border border-slate-700 flex flex-col justify-between space-y-2 sm:space-y-3 shadow-md relative group cursor-pointer hover:border-indigo-500/50 transition";
+        card.innerHTML = `
+            <div class="border-b border-slate-700/60 pb-1.5 flex justify-between items-center" onclick="openMemberModal(${m.id})">
+                <div class="overflow-hidden">
+                    <label class="text-[9px] sm:text-[10px] uppercase text-slate-500 block font-semibold truncate">MEMBER #${m.id}</label>
+                    <div class="flex items-center space-x-1.5 mt-0.5">
+                        <i class="fa-solid fa-user text-indigo-400 text-xs sm:text-sm"></i>
+                        <span class="text-slate-100 font-bold text-xs sm:text-base hover:text-indigo-400 truncate">${m.name}</span>
+                    </div>
+                </div>
+                ${isAdmin ? `<button onclick="event.stopPropagation(); deleteMember(${idx})" title="Remove Member" class="text-rose-500 hover:text-rose-400 p-1 text-xs shrink-0"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+            </div>
+            <div class="space-y-2 text-[11px] sm:text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-0.5 text-[10px] sm:text-xs">Deposit (৳):</label>
+                    <input type="text" value="${m.deposit}" ${disabledAttr}
+                        onchange="updateMemberDeposit(${idx}, this.value)"
+                        placeholder="e.g. 2000+1000"
+                        class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-emerald-400 font-bold text-xs sm:text-sm focus:outline-none focus:border-emerald-500 disabled:bg-slate-800/50">
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 sm:gap-2" onclick="event.stopPropagation();">
+                    <div>
+                        <label class="text-slate-400 block mb-0.5 text-[10px] sm:text-xs">Lunch:</label>
+                        <input type="text" readonly id="m-lunch-${idx}" value="0" class="bg-slate-900 border border-slate-700 rounded px-1.5 sm:px-2.5 py-1 w-full text-slate-200 font-bold text-xs sm:text-sm cursor-default focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-0.5 text-[10px] sm:text-xs">Dinner:</label>
+                        <input type="text" readonly id="m-dinner-${idx}" value="0" class="bg-slate-900 border border-slate-700 rounded px-1.5 sm:px-2.5 py-1 w-full text-slate-200 font-bold text-xs sm:text-sm cursor-default focus:outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="pt-2 sm:pt-3 border-t border-slate-700/60 text-[11px] sm:text-xs space-y-1 sm:space-y-2" onclick="openMemberModal(${m.id})">
+                <div class="flex justify-between text-slate-300 items-center"><span class="text-slate-400">Meals:</span><span class="font-black text-slate-100 text-xs sm:text-base" id="m-meals-${idx}">0</span></div>
+                <div class="flex justify-between text-slate-300 items-center"><span class="text-slate-400">Extra:</span><span class="font-extrabold text-pink-400 text-xs sm:text-sm" id="m-extra-${idx}">৳0</span></div>
+                <div class="flex justify-between text-slate-300 items-center"><span class="text-slate-400">Est. Cost:</span><span class="font-extrabold text-rose-400 text-xs sm:text-sm" id="m-cost-${idx}">৳0</span></div>
+                <div class="flex justify-between text-slate-100 font-extrabold pt-1.5 sm:pt-2 border-t border-slate-700/40 items-center"><span>Balance:</span><span id="m-balance-${idx}" class="text-xs sm:text-sm">৳0</span></div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function addMember() {
+    if (!isAdmin) return;
+    const input = document.getElementById('new-member-name');
+    const name = input.value.trim();
+    if (!name) {
+        alert("মেম্বারের নাম লিখুন!");
+        return;
+    }
+    const newId = state.members.length > 0 ? Math.max(...state.members.map(m => m.id)) + 1 : 1;
+    state.members.push({ id: newId, name: name, deposit: 0 });
+    input.value = '';
+    renderAll();
+    saveData(false);
+}
+
+function deleteMember(idx) {
+    if (!isAdmin) return;
+    if (confirm(`আপনি কি "${state.members[idx].name}" কে বাদ দিতে চান?`)) {
+        state.members.splice(idx, 1);
+        renderAll();
+        saveData(false);
+    }
+}
+
+function updateMemberDeposit(index, val) {
+    if (!isAdmin) return;
+    const evaluated = evaluateCostInput(val);
+    state.members[index].deposit = evaluated;
+    renderMembers();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function evaluateCostInput(val) {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    try {
+        const sanitized = val.replace(/[^0-9+\-*/.]/g, '');
+        if (!sanitized) return 0;
+        const result = Function(`"use strict"; return (${sanitized})`)();
+        return isNaN(result) ? 0 : Number(result);
+    } catch (e) {
+        return Number(parseFloat(val)) || 0;
+    }
+}
+
+// BAZAR & EXTRA RENDERERS
+function renderBazar() {
+    const tbody = document.getElementById('bazar-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const disabledAttr = isAdmin ? '' : 'disabled';
+    const defaultDate = getSelectedMonthDefaultDate();
+
+    state.bazar.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-slate-700/50 hover:bg-slate-700/20 transition";
+        tr.innerHTML = `
+            <td class="p-2">
+                <input type="text" value="${item.name || ''}" ${disabledAttr} 
+                    placeholder="যেমন: চাল, ডাল, মুরগি..." 
+                    oninput="updateBazar(${idx}, 'name', this.value)" 
+                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 disabled:bg-transparent disabled:border-none disabled:p-0">
+            </td>
+            <td class="p-2">
+                <div class="relative flex items-center">
+                    <i class="fa-regular fa-calendar absolute left-2 text-indigo-400 text-xs pointer-events-none"></i>
+                    <input type="date" value="${item.date || defaultDate}" ${disabledAttr} 
+                        onchange="updateBazar(${idx}, 'date', this.value)" 
+                        class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg pl-7 pr-1.5 py-1.5 text-[11px] sm:text-xs text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer disabled:bg-transparent disabled:border-none disabled:pl-0">
+                </div>
+            </td>
+            <td class="p-2">
+                <input type="text" value="${item.qty || ''}" ${disabledAttr} 
+                    placeholder="৫ কেজী" 
+                    oninput="updateBazar(${idx}, 'qty', this.value)" 
+                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-transparent disabled:border-none disabled:p-0">
+            </td>
+            <td class="p-2">
+                <input type="text" value="${item.cost || ''}" ${disabledAttr} 
+                    onchange="updateBazarCost(${idx}, this.value, 'bazar')" 
+                    placeholder="e.g. 500+200" 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-emerald-400 font-bold focus:outline-none focus:border-indigo-500 disabled:bg-transparent disabled:border-none disabled:p-0">
+            </td>
+            ${isAdmin ? `
+            <td class="p-2 text-center">
+                <button onclick="deleteBazar(${idx})" class="text-rose-400 hover:text-rose-300 p-1">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>` : ''}
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderExtra() {
+    const tbody = document.getElementById('extra-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const disabledAttr = isAdmin ? '' : 'disabled';
+    const defaultDate = getSelectedMonthDefaultDate();
+
+    state.extra.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-slate-700/50 hover:bg-slate-700/20 transition";
+        tr.innerHTML = `
+            <td class="p-2">
+                <input type="text" value="${item.name || ''}" ${disabledAttr} 
+                    placeholder="যেমন: Cleaner, Hand-Wash..." 
+                    oninput="updateExtra(${idx}, 'name', this.value)" 
+                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 disabled:bg-transparent disabled:border-none disabled:p-0">
+            </td>
+            <td class="p-2">
+                <div class="relative flex items-center">
+                    <i class="fa-regular fa-calendar absolute left-2 text-pink-400 text-xs pointer-events-none"></i>
+                    <input type="date" value="${item.date || defaultDate}" ${disabledAttr} 
+                        onchange="updateExtra(${idx}, 'date', this.value)" 
+                        class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg pl-7 pr-1.5 py-1.5 text-[11px] sm:text-xs text-slate-200 focus:outline-none focus:border-pink-500 cursor-pointer disabled:bg-transparent disabled:border-none disabled:pl-0">
+                </div>
+            </td>
+            <td class="p-2">
+                <input type="text" value="${item.qty || ''}" ${disabledAttr} 
+                    placeholder="১টি" 
+                    oninput="updateExtra(${idx}, 'qty', this.value)" 
+                    class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-pink-500 disabled:bg-transparent disabled:border-none disabled:p-0">
+            </td>
+            <td class="p-2">
+                <input type="text" value="${item.cost || ''}" ${disabledAttr} 
+                    onchange="updateBazarCost(${idx}, this.value, 'extra')" 
+                    placeholder="e.g. 100+50" 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-pink-400 font-bold focus:outline-none focus:border-pink-500 disabled:bg-transparent disabled:border-none disabled:p-0">
+            </td>
+            ${isAdmin ? `
+            <td class="p-2 text-center">
+                <button onclick="deleteExtra(${idx})" class="text-rose-400 hover:text-rose-300 p-1">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>` : ''}
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updateBazar(index, key, val) {
+    if (!isAdmin) return;
+    state.bazar[index][key] = key === 'cost' ? evaluateCostInput(val) : val;
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function updateExtra(index, key, val) {
+    if (!isAdmin) return;
+    state.extra[index][key] = key === 'cost' ? evaluateCostInput(val) : val;
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function updateBazarCost(index, val, type) {
+    if (!isAdmin) return;
+    const evaluated = evaluateCostInput(val);
+    if (type === 'bazar') {
+        state.bazar[index].cost = evaluated;
+        renderBazar();
+    } else {
+        state.extra[index].cost = evaluated;
+        renderExtra();
+    }
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+// সিলেক্টেড মাস অনুযায়ী তারিখ বের করার ফাংশন
+function getSelectedMonthDefaultDate() {
+    const activeMonth = state?.currentMonth || new Date().toISOString().slice(0, 7);
+    const today = new Date();
+    const todayMonth = today.toISOString().slice(0, 7);
+
+    if (activeMonth === todayMonth) {
+        return today.toISOString().split('T')[0];
+    } else {
+        return `${activeMonth}-01`;
+    }
+}
+
+function addBazarRow() {
+    if (!isAdmin) return;
+    state.bazar.push({ id: Date.now(), name: "", date: getSelectedMonthDefaultDate(), qty: "1 pc", cost: 0 });
+    renderBazar();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function deleteBazar(idx) {
+    if (!isAdmin) return;
+    state.bazar.splice(idx, 1);
+    renderBazar();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function addExtraRow() {
+    if (!isAdmin) return;
+    state.extra.push({ id: Date.now(), name: "", date: getSelectedMonthDefaultDate(), qty: "1 pc", cost: 0 });
+    renderExtra();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+function deleteExtra(idx) {
+    if (!isAdmin) return;
+    state.extra.splice(idx, 1);
+    renderExtra();
+    calculateAll();
+    renderSummary();
+    saveData(false);
+}
+
+// MAIN CALCULATIONS ENGINE
+function calculateAll() {
+    let totalDeposit = 0;
+    let totalLunch = 0;
+    let totalDinner = 0;
+    const overallMenuSummary = {};
+
+    Object.values(state.dailyMeals).forEach(dayData => {
+        const lMenu = dayData.lunchMenu || "Fixed";
+        const dMenu = dayData.dinnerMenu || "Fixed";
+
+        Object.values(dayData.meals || {}).forEach(m => {
+            const lVal = Number(m.lunch) || 0;
+            const dVal = Number(m.dinner) || 0;
+            totalLunch += lVal;
+            totalDinner += dVal;
+
+            if (lVal > 0) overallMenuSummary[lMenu] = (overallMenuSummary[lMenu] || 0) + lVal;
+            if (dVal > 0) overallMenuSummary[dMenu] = (overallMenuSummary[dMenu] || 0) + dVal;
+        });
+    });
+
+    const memberCount = state.members.length;
+    const totalMeals = totalLunch + totalDinner;
+
+    state.members.forEach(m => {
+        totalDeposit += evaluateCostInput(m.deposit);
+    });
+
+    let totalBazar = state.bazar.reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+    let totalExtra = state.extra.reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+
+    const totalOverallExpense = totalBazar + totalExtra;
+    const cashInHand = totalDeposit - totalOverallExpense;
+    const mealRate = totalMeals > 0 ? (totalBazar / totalMeals) : 0;
+    const extraPerMember = memberCount > 0 ? (totalExtra / memberCount) : 0;
+
+    const setElemText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = text;
+    };
+
+    setElemText('tab-member-count', memberCount);
+    setElemText('dash-extra-member-count', memberCount);
+    setElemText('dash-total-deposit', `৳${totalDeposit.toLocaleString()}`);
+    setElemText('dash-total-expense', `৳${totalOverallExpense.toLocaleString()}`);
+    setElemText('dash-cash-in-hand', `৳${cashInHand.toLocaleString()}`);
+    setElemText('dash-meal-rate', `৳${mealRate.toFixed(2)}`);
+    setElemText('dash-total-lunch', totalLunch);
+    setElemText('dash-total-dinner', totalDinner);
+    setElemText('dash-total-meals', totalMeals);
+    setElemText('dash-extra-total', `৳${totalExtra.toLocaleString()}`);
+    setElemText('dash-extra-per-member', `৳${extraPerMember.toFixed(2)}`);
+    setElemText('bazar-total-display', `৳${totalBazar.toLocaleString()}`);
+    setElemText('extra-total-display', `৳${totalExtra.toLocaleString()}`);
+
+    const dashMenuContainer = document.getElementById('dash-menu-consumption-container');
+    if (dashMenuContainer) {
+        dashMenuContainer.innerHTML = '';
+        const entries = Object.entries(overallMenuSummary);
+        if (entries.length === 0) {
+            dashMenuContainer.innerHTML = '<div class="col-span-full text-slate-500 text-xs italic">এখনও কোনো খাবারের এন্ট্রি করা হয়নি।</div>';
+        } else {
+            entries.forEach(([menuName, count]) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-between";
+                card.innerHTML = `<span class="text-xs text-slate-400 font-semibold truncate block mb-1">${menuName}</span><div class="text-lg font-black text-amber-400">${count} <span class="text-[10px] text-slate-500 font-normal">Meals</span></div>`;
+                dashMenuContainer.appendChild(card);
+            });
+        }
+    }
+
+    state.members.forEach((m, idx) => {
+        let memberLunch = 0;
+        let memberDinner = 0;
+        Object.values(state.dailyMeals).forEach(d => {
+            const mMeal = d.meals?.[m.id];
+            if (mMeal) {
+                memberLunch += Number(mMeal.lunch) || 0;
+                memberDinner += Number(mMeal.dinner) || 0;
+            }
+        });
+
+        const mTotalMeals = memberLunch + memberDinner;
+        const totalMemberCost = (mTotalMeals * mealRate) + extraPerMember;
+        const balance = evaluateCostInput(m.deposit) - totalMemberCost;
+
+        const lInput = document.getElementById(`m-lunch-${idx}`);
+        const dInput = document.getElementById(`m-dinner-${idx}`);
+        if (lInput) lInput.value = memberLunch;
+        if (dInput) dInput.value = memberDinner;
+
+        setElemText(`m-meals-${idx}`, `${mTotalMeals}`);
+        setElemText(`m-extra-${idx}`, `৳${extraPerMember.toFixed(1)}`);
+        setElemText(`m-cost-${idx}`, `৳${totalMemberCost.toFixed(1)}`);
+
+        const balElem = document.getElementById(`m-balance-${idx}`);
+        if (balElem) {
+            balElem.innerText = `৳${balance.toFixed(1)}`;
+            balElem.className = balance >= 0 ? "font-black text-emerald-400 text-base" : "font-black text-rose-400 text-base";
+        }
+    });
+}
+
+// FINAL SUMMARY PAGE RENDERING & AUTOMATION
+function renderSummary() {
+    const tbody = document.getElementById('summary-table-body');
+    const mobileCards = document.getElementById('summary-mobile-cards');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (mobileCards) mobileCards.innerHTML = ''; // মোবাইল কন্টেইনার খালি করা
+
+    const monthName = state?.selectedMonth || "August";
+    const monthHeader = document.getElementById('summary-month-name');
+    if (monthHeader) monthHeader.innerText = monthName;
+
+    // সেফটি চেক সহ টোটাল বাজার ও এক্সট্রা খরচ বের করা
+    let totalBazar = (state?.bazar || []).reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+    let totalExtra = (state?.extra || []).reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+    let globalTotalMeals = 0;
+
+    // dailyMeals আনডিফাইন্ড থাকলে ক্র্যাশ করবে না
+    if (state?.dailyMeals) {
+        Object.values(state.dailyMeals).forEach(dayData => {
+            Object.values(dayData.meals || {}).forEach(m => {
+                globalTotalMeals += (Number(m.lunch) || 0) + (Number(m.dinner) || 0);
+            });
+        });
+    }
+
+    const mealRate = globalTotalMeals > 0 ? (totalBazar / globalTotalMeals) : 0;
+    const memberCount = state?.members ? state.members.length : 0;
+    const extraPerMember = memberCount > 0 ? (totalExtra / memberCount) : 0;
+
+    // isAdmin সেফটি চেক
+    const checkAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : false;
+    const isDis = checkAdmin ? '' : 'disabled';
+
+    if (state?.members && state.members.length > 0) {
+        state.members.forEach((m) => {
+            let memberLunch = 0;
+            let memberDinner = 0;
+
+            if (state?.dailyMeals) {
+                Object.values(state.dailyMeals).forEach(d => {
+                    const mMeal = d.meals?.[m.id];
+                    if (mMeal) {
+                        memberLunch += Number(mMeal.lunch) || 0;
+                        memberDinner += Number(mMeal.dinner) || 0;
+                    }
+                });
+            }
+
+            const totalMeals = memberLunch + memberDinner;
+            const mealCost = totalMeals * mealRate;
+            const totalAllCost = mealCost + extraPerMember;
+            const deposit = evaluateCostInput(m.deposit) || 0;
+            const balance = deposit - totalAllCost;
+            let roundedBalance = Math.round(balance);
+
+            // --- ১. ডেসকটপ ভিউ (Table Row) ---
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-slate-700/50 hover:bg-slate-800/40 transition";
+            tr.innerHTML = `
+                <td class="p-3 font-bold text-slate-100 text-sm sm:text-base">
+                    <i class="fa-solid fa-user-check text-indigo-400 mr-1.5 text-sm"></i> ${m.name}
+                </td>
+                <td class="p-3 text-center font-bold text-emerald-400 text-sm sm:text-base">৳${deposit.toLocaleString()}</td>
+                <td class="p-3 text-center font-bold text-amber-400 text-sm sm:text-base">${totalMeals}</td>
+                <td class="p-3 text-center text-cyan-400 font-semibold text-xs sm:text-sm">৳${mealRate.toFixed(2)}</td>
+                <td class="p-3 text-center text-rose-300 font-semibold text-xs sm:text-sm">৳${mealCost.toFixed(2)}</td>
+                <td class="p-3 text-center text-pink-300 font-semibold text-xs sm:text-sm">৳${extraPerMember.toFixed(2)}</td>
+                <td class="p-3 text-center font-black text-rose-400 text-sm sm:text-base">৳${totalAllCost.toFixed(2)}</td>
+                <td class="p-3 text-right">
+                    <div class="flex items-center justify-end gap-3">
+                        <span class="status-text font-black text-base sm:text-lg uppercase tracking-wide"></span>
+                        <input type="number"
+                            value="${roundedBalance}"
+                            ${isDis}
+                            onkeyup="handleSettlementText(this)"
+                            onchange="handleSettlementText(this)"
+                            onclick="this.select()"
+                            class="bg-slate-900 border border-slate-700 text-center rounded-lg p-1.5 w-24 font-bold text-sm sm:text-base focus:outline-none focus:border-indigo-500 shadow-inner transition"
+                        >
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            // --- ২. মোবাইল ভিউ (Card View) ---
+            if (mobileCards) {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900/90 border border-slate-700 rounded-xl p-3 space-y-3 shadow-md";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b border-slate-700/60 pb-2">
+                        <span class="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-check text-indigo-400 text-xs"></i> ${m.name}
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <span class="status-text font-black text-xs uppercase tracking-wide"></span>
+                            <input type="number"
+                                value="${roundedBalance}"
+                                ${isDis}
+                                onkeyup="handleSettlementText(this)"
+                                onchange="handleSettlementText(this)"
+                                onclick="this.select()"
+                                class="bg-slate-800 border border-slate-700 text-center rounded-md p-1 w-20 font-bold text-xs focus:outline-none focus:border-indigo-500 shadow-inner transition"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-slate-800/60 p-2 rounded border border-slate-700/40">
+                            <span class="text-slate-400 block text-[10px]">Deposit</span>
+                            <strong class="text-emerald-400">৳${deposit.toLocaleString()}</strong>
+                        </div>
+                        <div class="bg-slate-800/60 p-2 rounded border border-slate-700/40">
+                            <span class="text-slate-400 block text-[10px]">Total Meal</span>
+                            <strong class="text-amber-400">${totalMeals} <span class="text-[9px] text-cyan-400 font-normal">(Rate: ৳${mealRate.toFixed(2)})</span></strong>
+                        </div>
+                        <div class="bg-slate-800/60 p-2 rounded border border-slate-700/40">
+                            <span class="text-slate-400 block text-[10px]">Meal Cost</span>
+                            <strong class="text-rose-300">৳${mealCost.toFixed(2)}</strong>
+                        </div>
+                        <div class="bg-slate-800/60 p-2 rounded border border-slate-700/40">
+                            <span class="text-slate-400 block text-[10px]">Extra Cost</span>
+                            <strong class="text-pink-300">৳${extraPerMember.toFixed(2)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="pt-1 flex justify-between items-center text-xs border-t border-slate-700/40">
+                        <span class="text-slate-400 font-medium">Total All Cost:</span>
+                        <span class="font-black text-rose-400 text-sm">৳${totalAllCost.toFixed(2)}</span>
+                    </div>
+                `;
+                mobileCards.appendChild(card);
+            }
+        });
+    }
+
+    // ইনপুট ফিল্ডগুলোতে স্ট্যাটাস টেক্সট আপডেট
+    if (typeof handleSettlementText === 'function') {
+        document.querySelectorAll('#sec-summary input[type="number"]').forEach(input => {
+            handleSettlementText(input);
+        });
+    }
+}
+
+// PDF / Print ডাউনলোড ফাংশন
+function downloadSummaryPDF() {
+    const checkAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : false;
+    if (!checkAdmin) {
+        alert("শুধুমাত্র অ্যাডমিন রিপোর্ট ডাউনলোড করতে পারবেন!");
+        return;
+    }
+
+    const monthName = state?.selectedMonth || "August";
+    let totalBazar = (state?.bazar || []).reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+    let totalExtra = (state?.extra || []).reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+    let globalTotalMeals = 0;
+
+    if (state?.dailyMeals) {
+        Object.values(state.dailyMeals).forEach(dayData => {
+            Object.values(dayData.meals || {}).forEach(m => {
+                globalTotalMeals += (Number(m.lunch) || 0) + (Number(m.dinner) || 0);
+            });
+        });
+    }
+
+    const mealRate = globalTotalMeals > 0 ? (totalBazar / globalTotalMeals) : 0;
+    const memberCount = state?.members ? state.members.length : 0;
+    const extraPerMember = memberCount > 0 ? (totalExtra / memberCount) : 0;
+
+    let printRows = '';
+    if (state?.members) {
+        state.members.forEach((m) => {
+            let memberLunch = 0;
+            let memberDinner = 0;
+
+            if (state?.dailyMeals) {
+                Object.values(state.dailyMeals).forEach(d => {
+                    const mMeal = d.meals?.[m.id];
+                    if (mMeal) {
+                        memberLunch += Number(mMeal.lunch) || 0;
+                        memberDinner += Number(mMeal.dinner) || 0;
+                    }
+                });
+            }
+
+            const totalMeals = memberLunch + memberDinner;
+            const mealCost = totalMeals * mealRate;
+            const totalAllCost = mealCost + extraPerMember;
+            const deposit = evaluateCostInput(m.deposit) || 0;
+            const balance = deposit - totalAllCost;
+            let roundedBalance = Math.round(balance);
+
+            let statusText = "GOOD FINISH";
+            let statusColor = "#10b981";
+            if (roundedBalance > 0) {
+                statusText = `You Get: ৳${roundedBalance}`;
+                statusColor = "#10b981";
+            } else if (roundedBalance < 0) {
+                statusText = `You Pay: ৳${Math.abs(roundedBalance)}`;
+                statusColor = "#f43f5e";
+            }
+
+            printRows += `
+                <tr style="border-bottom: 1px solid #ddd; text-align: center;">
+                    <td style="padding: 10px; text-align: left; font-weight: bold;">${m.name}</td>
+                    <td style="padding: 10px;">৳${deposit.toLocaleString()}</td>
+                    <td style="padding: 10px; font-weight: bold;">${totalMeals}</td>
+                    <td style="padding: 10px;">৳${mealRate.toFixed(2)}</td>
+                    <td style="padding: 10px;">৳${mealCost.toFixed(2)}</td>
+                    <td style="padding: 10px;">৳${extraPerMember.toFixed(2)}</td>
+                    <td style="padding: 10px; font-weight: bold; color: #e11d48;">৳${totalAllCost.toFixed(2)}</td>
+                    <td style="padding: 10px; font-weight: bold; color: ${statusColor}; text-align: right;">${statusText}</td>
+                </tr>
+            `;
+        });
+    }
+
+    const printWindow = window.open('', '', 'width=900,height=700');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Summary Report - ${monthName}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                .header h1 { margin: 0; font-size: 22px; }
+                .header p { margin: 5px 0 0 0; color: #666; font-size: 13px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+                th { background-color: #1e293b; color: #fff; padding: 10px; text-transform: uppercase; font-size: 11px; }
+                .footer { margin-top: 30px; text-align: right; font-size: 11px; color: #777; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Monthly Final Summary Report</h1>
+                <p>Month: <strong>${monthName}</strong> | Total Bazar: ৳${totalBazar} | Meal Rate: ৳${mealRate.toFixed(2)}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Member Name</th>
+                        <th>Deposit</th>
+                        <th>Total Meal</th>
+                        <th>Meal Rate</th>
+                        <th>Meal Cost</th>
+                        <th>Extra Cost</th>
+                        <th>Total All Cost</th>
+                        <th style="text-align: right;">Final Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${printRows}
+                </tbody>
+            </table>
+            <div class="footer">
+                <p>Generated automatically on ${new Date().toLocaleDateString()}</p>
+            </div>
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
+}
+
+
+function handleSettlementText(input) {
+    const val = parseFloat(input.value) || 0;
+    const statusSpan = input.previousElementSibling;
+
+    if (val === 0) {
+        statusSpan.innerHTML = '<span class="text-emerald-400 font-black text-base sm:text-lg drop-shadow-md flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> GOOD FINISH</span>';
+        input.className = "bg-slate-900 border-2 border-emerald-500 text-emerald-400 text-center rounded-lg p-1.5 w-24 font-black text-sm sm:text-base focus:outline-none shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-all";
+    } else if (val > 0) {
+        statusSpan.innerHTML = `<span class="text-emerald-400 font-extrabold text-sm sm:text-base">You Get: +৳${val}</span>`;
+        input.className = "bg-slate-900 border border-slate-700 text-emerald-400 text-center rounded-lg p-1.5 w-24 font-bold text-sm sm:text-base focus:outline-none focus:border-emerald-500 transition-all";
+    } else {
+        statusSpan.innerHTML = `<span class="text-rose-500 font-extrabold text-sm sm:text-base">You Pay: -৳${Math.abs(val)}</span>`;
+        input.className = "bg-slate-900 border border-slate-700 text-rose-500 text-center rounded-lg p-1.5 w-24 font-bold text-sm sm:text-base focus:outline-none focus:border-rose-500 transition-all";
+    }
+}
+
+// STORAGE & CLOUD BACKUP
+function saveData(showAlert = false) {
+    if (!isAdmin && showAlert) {
+        alert("শুধুমাত্র অ্যাডমিন ক্লাউড ব্যাকআপ দিতে পারবেন!");
+        return;
+    }
+    const monthDropdown = document.getElementById('selected-month');
+    if (monthDropdown) state.selectedMonth = monthDropdown.value;
+
+    localStorage.setItem('bachelor_brotherhood_db', JSON.stringify(state));
+
+    if (showAlert) {
+        syncToGoogleSheets();
+    }
+}
+
+function syncToGoogleSheets() {
+    if (!GOOGLE_SHEET_WEBHOOK_URL || GOOGLE_SHEET_WEBHOOK_URL.includes("YOUR_GOOGLE")) {
+        alert("লোকাল স্টোরেজে ডাটা সেভ হয়েছে! গুগল শিটে ব্যাকআপ পেতে script.js ফাইলে Webhook URL যুক্ত করুন।");
+        return;
+    }
+
+    const payload = {
+        month: state.selectedMonth || "August",
+        members: state.members,
+        bazar: state.bazar,
+        extra: state.extra,
+        dailyMeals: state.dailyMeals
+    };
+
+    fetch(GOOGLE_SHEET_WEBHOOK_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(() => alert(`ডাটা সফলভাবে সেভ হয়েছে এবং (${payload.month}) মাসের ব্যাকআপ Google Sheet-এ জমা হয়েছে!`))
+        .catch(err => {
+            console.error("Cloud Backup Error: ", err);
+            alert('লোকালে সেভ হয়েছে, তবে গুগল শিটে পাঠাতে সমস্যা হয়েছে।');
+        });
+}
+
+function loadSavedData() {
+    const saved = localStorage.getItem('bachelor_brotherhood_db');
+    if (saved) {
+        try {
+            state = JSON.parse(saved);
+            if (!state.dailyMeals) state.dailyMeals = {};
+        } catch (e) {
+            console.error("Error loading saved state", e);
+        }
+    }
+}
+
+function resetData() {
+    if (!isAdmin) return;
+    if (confirm("আপনি কি নিশ্চিত যে সকল ডাটা রিসেট করতে চান?")) {
+        localStorage.removeItem('bachelor_brotherhood_db');
+        state = JSON.parse(JSON.stringify(defaultState));
+        const monthDropdown = document.getElementById('selected-month');
+        if (monthDropdown) monthDropdown.value = state.selectedMonth;
+        renderAll();
+        alert('ডাটা রিসেট সম্পন্ন হয়েছে।');
+    }
+}
+
+
+
+
+// ==========================================
+// MOBILE MENU TOGGLE HANDLERS
+// ==========================================
+
+// ১. মোবাইল মেনু ড্রপডাউন টগল করা
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const icon = document.getElementById('mobile-menu-icon');
+
+    if (menu) {
+        menu.classList.toggle('hidden');
+        if (icon) {
+            if (menu.classList.contains('hidden')) {
+                icon.className = "fa-solid fa-bars text-lg";
+            } else {
+                icon.className = "fa-solid fa-xmark text-lg text-rose-400";
+            }
+        }
+    }
+}
