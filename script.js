@@ -212,15 +212,13 @@ function switchTabMobile(tabName) {
     toggleMobileMenu();
 }
 
-// DAILY MEAL SHEET HANDLERS
 // ==========================================
-// [UPDATED] DAILY MEAL SHEET HANDLERS
+// 🟢 DAILY MEAL SHEET HANDLERS (UPDATED)
 // ==========================================
 
 function renderDailyMealTab() {
     const day = document.getElementById('daily-date-select')?.value || "1";
 
-    // [UPDATE] সাবমিটের আগে অরিজিনাল ডাটা না বদলে টেম্পোরারি অবজেক্টে ডাটা কপি করে নেওয়া হচ্ছে
     if (!tempDailyMeals[day]) {
         if (state.dailyMeals[day]) {
             tempDailyMeals[day] = JSON.parse(JSON.stringify(state.dailyMeals[day]));
@@ -261,25 +259,28 @@ function renderDailyMealTab() {
         totalDayDinner += dinnerVal;
         grandTotalDayMeals += totalDayMeal;
 
+        // 🟢 [FIX 1] মান 0 হলে ইনপুট বক্সে ফাঁকা দেখাবে (placeholder="0" থাকবে)
+        const lunchDisplay = (mMeal.lunch === 0 || mMeal.lunch === "0" || mMeal.lunch === "") ? "" : mMeal.lunch;
+        const dinnerDisplay = (mMeal.dinner === 0 || mMeal.dinner === "0" || mMeal.dinner === "") ? "" : mMeal.dinner;
+
         const tr = document.createElement('tr');
         tr.className = "border-b border-slate-700/50 hover:bg-slate-800/40 transition";
 
-        // [UPDATED] p-3 কমিয়ে p-1.5 sm:p-2.5 এবং input width w-16 কমিয়ে w-10 sm:w-14 করা হয়েছে
         tr.innerHTML = `
             <td class="p-1.5 sm:p-2.5 font-bold text-xs sm:text-sm text-slate-100 cursor-pointer hover:text-indigo-400 truncate" onclick="openMemberModal(${m.id})">
                 <i class="fa-solid fa-user text-indigo-400 mr-1 text-[11px] sm:text-xs"></i> ${m.name}
             </td>
             <td class="p-1.5 sm:p-2.5 text-center">
-                <input type="number" min="0" step="0.5" value="${mMeal.lunch}" ${disabledAttr}
-                    onchange="updateTempDailyMealCount('${day}', ${m.id}, 'lunch', this.value)"
+                <input type="number" min="0" step="0.5" placeholder="0" value="${lunchDisplay}" ${disabledAttr}
+                    oninput="updateTempDailyMealCount('${day}', ${m.id}, 'lunch', this.value)"
                     class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-amber-400 focus:outline-none focus:border-indigo-500">
             </td>
             <td class="p-1.5 sm:p-2.5 text-center">
-                <input type="number" min="0" step="0.5" value="${mMeal.dinner}" ${disabledAttr}
-                    onchange="updateTempDailyMealCount('${day}', ${m.id}, 'dinner', this.value)"
+                <input type="number" min="0" step="0.5" placeholder="0" value="${dinnerDisplay}" ${disabledAttr}
+                    oninput="updateTempDailyMealCount('${day}', ${m.id}, 'dinner', this.value)"
                     class="w-10 sm:w-14 bg-slate-900 border border-slate-700 rounded p-0.5 sm:p-1 text-center font-bold text-xs sm:text-sm text-indigo-400 focus:outline-none focus:border-indigo-500">
             </td>
-            <td class="p-1.5 sm:p-2.5 text-center font-extrabold text-emerald-400 text-xs sm:text-sm">
+            <td class="p-1.5 sm:p-2.5 text-center font-extrabold text-emerald-400 text-xs sm:text-sm" id="row-total-${m.id}">
                 ${totalDayMeal}
             </td>
             <td class="p-1.5 sm:p-2.5 text-right">
@@ -291,29 +292,54 @@ function renderDailyMealTab() {
         tbody.appendChild(tr);
     });
 
-    // টোটাল রো যোগ করা (UPDATED padding)
+    // টোটাল রো
     const totalTr = document.createElement('tr');
+    totalTr.id = "daily-meal-total-row";
     totalTr.className = "bg-slate-900/90 font-bold border-t border-slate-700";
     totalTr.innerHTML = `
         <td class="p-1.5 sm:p-2.5 text-[10px] sm:text-xs uppercase text-slate-400 truncate">Total:</td>
-        <td class="p-1.5 sm:p-2.5 text-center text-amber-400 font-extrabold text-xs sm:text-sm">${totalDayLunch}</td>
-        <td class="p-1.5 sm:p-2.5 text-center text-indigo-400 font-extrabold text-xs sm:text-sm">${totalDayDinner}</td>
-        <td class="p-1.5 sm:p-2.5 text-center text-emerald-400 font-extrabold text-xs sm:text-sm">${grandTotalDayMeals}</td>
+        <td class="p-1.5 sm:p-2.5 text-center text-amber-400 font-extrabold text-xs sm:text-sm" id="sum-day-lunch">${totalDayLunch}</td>
+        <td class="p-1.5 sm:p-2.5 text-center text-indigo-400 font-extrabold text-xs sm:text-sm" id="sum-day-dinner">${totalDayDinner}</td>
+        <td class="p-1.5 sm:p-2.5 text-center text-emerald-400 font-extrabold text-xs sm:text-sm" id="sum-day-grand">${grandTotalDayMeals}</td>
         <td></td>
     `;
     tbody.appendChild(totalTr);
 }
 
-// [NEW] ইনপুটে টাইপ বা চেঞ্জ করলে শুধুমাত্র টেম্পোরারি অবজেক্টে আপডেট হবে
+
+// 🟢 [FIX 2] ইনপুটে টাইপ করলে এখন আর পুরো টেবিল রেন্ডার হবে না (ফলে কিবোর্ড ও ফোকাস ঠিক থাকবে)
 function updateTempDailyMealCount(day, memberId, type, val) {
     if (!tempDailyMeals[day]) tempDailyMeals[day] = { lunchMenu: "Fixed", dinnerMenu: "Fixed", meals: {} };
     if (!tempDailyMeals[day].meals[memberId]) tempDailyMeals[day].meals[memberId] = { lunch: 0, dinner: 0 };
 
-    tempDailyMeals[day].meals[memberId][type] = Number(val) || 0;
+    const parsedVal = val === "" ? 0 : (Number(val) || 0);
+    tempDailyMeals[day].meals[memberId][type] = parsedVal;
 
-    // টেম্পোরারি ডাটা দিয়ে কেবল ওই টেবিলটা রিফ্রেশ করা হবে, মূল হিসেব বা প্রোফাইলে আপডেট যাবে না
-    renderDailyMealTab();
+    // ১. শুধু ওই নির্দিষ্ট লাইনের Total আপডেট
+    const mMeal = tempDailyMeals[day].meals[memberId];
+    const rowTotal = (Number(mMeal.lunch) || 0) + (Number(mMeal.dinner) || 0);
+    const rowTotalEl = document.getElementById(`row-total-${memberId}`);
+    if (rowTotalEl) rowTotalEl.innerText = rowTotal;
+
+    // ২. নিচের টোটাল সামারি রো (Lunch, Dinner, Grand Total) আপডেট
+    let totalLunch = 0;
+    let totalDinner = 0;
+    Object.values(tempDailyMeals[day].meals).forEach(m => {
+        totalLunch += Number(m.lunch) || 0;
+        totalDinner += Number(m.dinner) || 0;
+    });
+
+    const sumLunchEl = document.getElementById('sum-day-lunch');
+    const sumDinnerEl = document.getElementById('sum-day-dinner');
+    const sumGrandEl = document.getElementById('sum-day-grand');
+
+    if (sumLunchEl) sumLunchEl.innerText = totalLunch;
+    if (sumDinnerEl) sumDinnerEl.innerText = totalDinner;
+    if (sumGrandEl) sumGrandEl.innerText = totalLunch + totalDinner;
 }
+
+
+
 
 // [NEW] মেনু সিলেক্ট করলে টেম্পোরারিতে সেভ রাখা
 function updateDailyMenu() {
@@ -327,9 +353,7 @@ function updateDailyMenu() {
     tempDailyMeals[day].dinnerMenu = dMenu;
 }
 
-// ==========================================
-// [UPDATED] SUBMIT BUTTON HANDLER
-// ==========================================
+// 🟢 SUBMIT BUTTON HANDLER
 function submitDailyMeals() {
     if (!isAdmin) {
         alert("শুধুমাত্র অনুমোদিত এডমিন ডাটা সেভ বা সাবমিট করতে পারবেন।");
@@ -338,18 +362,14 @@ function submitDailyMeals() {
 
     const day = document.getElementById('daily-date-select')?.value || "1";
 
-    // [UPDATE] সাবমিট বাটনে চাপ দেওয়া মাত্রই টেম্পোরারি ডাটা মূল state এ যুক্ত হবে
     if (tempDailyMeals[day]) {
         state.dailyMeals[day] = JSON.parse(JSON.stringify(tempDailyMeals[day]));
     }
 
-    // ডাটা সেভ করা হচ্ছে LocalStorage / Cloud-এ
     saveData(true);
-
-    // মেইন ড্যাশবোর্ড, সমাপনী হিসাব এবং প্রোফাইলের সমস্ত ডাটা রি-রেন্ডার করা
     renderAll();
 
-    alert(`Day ${day} এর মিল ডাটা সফলভাবে প্রোফাইলে যুক্ত এবং সেভ হয়েছে!`);
+    alert(`Day ${day} এর মিল ডাটা সফলভাবে প্রোফাইলে যুক্ত এবং সেভ হয়েছে!`);
 }
 
 // INDIVIDUAL MEMBER DETAILS PAGE / MODAL HANDLERS
