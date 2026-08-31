@@ -85,17 +85,23 @@ function setupMonthSelector() {
     }
 }
 
-// Populate 1 to 31 Days in Daily Sheet
+// Populate 1 to 31 Days in Daily Sheet (UPDATED)
 function populateDailyDateSelector() {
     const select = document.getElementById('daily-date-select');
     if (!select) return;
-    select.innerHTML = '';
+
+    // 🟢 [FIX] শুরুতে ফাঁকা ডিফল্ট অপশন যোগ করা হলো
+    select.innerHTML = '<option value="" selected disabled>-- Select Day --</option>';
+
     for (let day = 1; day <= 31; day++) {
         const opt = document.createElement('option');
         opt.value = day;
         opt.innerText = `Day ${day}`;
         select.appendChild(opt);
     }
+
+    // 🟢 [FIX] ডিফল্ট ভ্যালু খালি রাখা হলো যাতে অটো দিন সিলেক্ট না হয়ে যায়
+    select.value = "";
 }
 
 // Admin Verification Functions
@@ -223,27 +229,39 @@ function switchTabMobile(tabName) {
 // ==========================================
 
 function renderDailyMealTab() {
-    const day = document.getElementById('daily-date-select')?.value || "1";
+    // 🟢 [FIX 1] অটো "1" ধরা বন্ধ করে খালি (null) ভ্যালু নেওয়া হচ্ছে
+    const daySelect = document.getElementById('daily-date-select');
+    const day = daySelect ? daySelect.value : "";
 
+    const lMenu = document.getElementById('daily-lunch-menu');
+    const dMenu = document.getElementById('daily-dinner-menu');
+    const tbody = document.getElementById('daily-meal-table-body');
+
+    // 🟢 [FIX 2] যদি কোনো দিন (Day) সিলেক্ট করা না থাকে, তবে মেনু "Null" ও টেবিল খালি থাকবে
+    if (!day) {
+        if (lMenu) lMenu.value = "Null";
+        if (dMenu) dMenu.value = "Null";
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Please select a day to view or edit meals.</td></tr>`;
+        return;
+    }
+
+    // 🟢 [FIX 3] নতুন দিনের জন্য ডিফল্ট "Fixed" বাদ দিয়ে "Null" রাখা হচ্ছে
     if (!tempDailyMeals[day]) {
         if (state.dailyMeals[day]) {
             tempDailyMeals[day] = JSON.parse(JSON.stringify(state.dailyMeals[day]));
         } else {
             tempDailyMeals[day] = {
-                lunchMenu: "Fixed",
-                dinnerMenu: "Fixed",
+                lunchMenu: "Null",  // Fixed বাদ দিয়ে "Null" রাখা হলো
+                dinnerMenu: "Null", // Fixed বাদ দিয়ে "Null" রাখা হলো
                 meals: {}
             };
         }
     }
 
     const dayData = tempDailyMeals[day];
-    const lMenu = document.getElementById('daily-lunch-menu');
-    const dMenu = document.getElementById('daily-dinner-menu');
-    if (lMenu) lMenu.value = dayData.lunchMenu || "Fixed";
-    if (dMenu) dMenu.value = dayData.dinnerMenu || "Fixed";
+    if (lMenu) lMenu.value = dayData.lunchMenu || "Null";
+    if (dMenu) dMenu.value = dayData.dinnerMenu || "Null";
 
-    const tbody = document.getElementById('daily-meal-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
 
@@ -265,7 +283,6 @@ function renderDailyMealTab() {
         totalDayDinner += dinnerVal;
         grandTotalDayMeals += totalDayMeal;
 
-        // 🟢 [FIX 1] মান 0 হলে ইনপুট বক্সে ফাঁকা দেখাবে (placeholder="0" থাকবে)
         const lunchDisplay = (mMeal.lunch === 0 || mMeal.lunch === "0" || mMeal.lunch === "") ? "" : mMeal.lunch;
         const dinnerDisplay = (mMeal.dinner === 0 || mMeal.dinner === "0" || mMeal.dinner === "") ? "" : mMeal.dinner;
 
@@ -273,7 +290,7 @@ function renderDailyMealTab() {
         tr.className = "border-b border-slate-700/50 hover:bg-slate-800/40 transition";
 
         tr.innerHTML = `
-            <td class="p-1.5 sm:p-2.5 font-bold text-xs sm:text-sm text-slate-100 cursor-pointer hover:text-indigo-400 truncate" onclick="openMemberModal(${m.id})">
+            <td class="p-1.5 sm:p-2.5 font-bold text-xs sm:text-sm text-slate-100 cursor-pointer hover:text-indigo-400 break-words" onclick="openMemberModal(${m.id})">
                 <i class="fa-solid fa-user text-indigo-400 mr-1 text-[11px] sm:text-xs"></i> ${m.name}
             </td>
             <td class="p-1.5 sm:p-2.5 text-center">
@@ -303,7 +320,7 @@ function renderDailyMealTab() {
     totalTr.id = "daily-meal-total-row";
     totalTr.className = "bg-slate-900/90 font-bold border-t border-slate-700";
     totalTr.innerHTML = `
-        <td class="p-1.5 sm:p-2.5 text-[10px] sm:text-xs uppercase text-slate-400 truncate">Total:</td>
+        <td class="p-1.5 sm:p-2.5 text-[10px] sm:text-xs uppercase text-slate-400 break-words">Total:</td>
         <td class="p-1.5 sm:p-2.5 text-center text-amber-400 font-extrabold text-xs sm:text-sm" id="sum-day-lunch">${totalDayLunch}</td>
         <td class="p-1.5 sm:p-2.5 text-center text-indigo-400 font-extrabold text-xs sm:text-sm" id="sum-day-dinner">${totalDayDinner}</td>
         <td class="p-1.5 sm:p-2.5 text-center text-emerald-400 font-extrabold text-xs sm:text-sm" id="sum-day-grand">${grandTotalDayMeals}</td>
