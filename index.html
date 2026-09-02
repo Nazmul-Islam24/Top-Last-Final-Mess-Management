@@ -744,8 +744,29 @@
         Bachelor Brotherhood &copy; 2026 - Uttara, Dhaka, Bangladesh.
     </footer>
 
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGe140j_q1uJJD5mxV2NBH0TDxA1WMGek",
+            authDomain: "bachelor-brotherhood.firebaseapp.com",
+            databaseURL: "https://bachelor-brotherhood-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "bachelor-brotherhood",
+            storageBucket: "bachelor-brotherhood.firebasestorage.app",
+            messagingSenderId: "408458495808",
+            appId: "1:408458495808:web:cd4cd877823bb8f200dca5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+
+        const firebaseDB = firebase.database();
+    </script>
+
     <!-- Custom JavaScript Link -->
     <script src="script.js"></script>
+
 </body>
 
 </html>

@@ -6,6 +6,16 @@ const ADMIN_EMAIL = "nzlpatwary901@gmail.com";
 const ADMIN_PIN = "1234";
 let isAdmin = false;
 
+// ==========================================
+// FIREBASE REALTIME DATABASE
+// ==========================================
+
+const firebaseDataRef = firebaseDB.ref("messData");
+
+let firebaseReady = false;
+let firebaseFirstLoad = true;
+
+
 // Initial Default State
 const defaultState = {
     selectedMonth: "January",
@@ -30,11 +40,14 @@ let tempDailyMeals = {};
 
 // Initialize App
 window.addEventListener('DOMContentLoaded', () => {
-    loadSavedData();
+
     setupMonthSelector();
     populateDailyDateSelector();
-    renderAll();
     updateAdminUI();
+
+    // Start Firebase real-time synchronization
+    initializeFirebaseSync();
+
 });
 
 function renderAll() {
@@ -1314,19 +1327,62 @@ function handleSettlementText(input) {
     }
 }
 
-// STORAGE & CLOUD BACKUP
+// STORAGE + FIREBASE REAL-TIME CLOUD SAVE
 function saveData(showAlert = false) {
+
     if (!isAdmin && showAlert) {
         alert("শুধুমাত্র অ্যাডমিন ক্লাউড ব্যাকআপ দিতে পারবেন!");
         return;
     }
+
     const monthDropdown = document.getElementById('selected-month');
-    if (monthDropdown) state.selectedMonth = monthDropdown.value;
 
-    localStorage.setItem('bachelor_brotherhood_db', JSON.stringify(state));
+    if (monthDropdown) {
+        state.selectedMonth = monthDropdown.value;
+    }
 
-    if (showAlert) {
-        syncToGoogleSheets();
+    // 1. Local backup
+    localStorage.setItem(
+        'bachelor_brotherhood_db',
+        JSON.stringify(state)
+    );
+
+    // 2. Firebase-এ Save
+    if (firebaseReady) {
+
+        firebaseDataRef.set(state)
+            .then(() => {
+
+                console.log("✅ Data successfully saved to Firebase");
+
+                // 3. Admin চাইলে Google Sheet backup
+                if (showAlert) {
+                    syncToGoogleSheets();
+                }
+
+            })
+            .catch((error) => {
+
+                console.error(
+                    "❌ Firebase save error:",
+                    error
+                );
+
+                alert(
+                    "Firebase-এ data save করতে সমস্যা হয়েছে। Internet connection check করুন।"
+                );
+            });
+
+    } else {
+
+        console.warn(
+            "⚠️ Firebase এখনও ready হয়নি।"
+        );
+
+        // Firebase ready না হলেও Admin-এর Google Sheet backup চলবে
+        if (showAlert) {
+            syncToGoogleSheets();
+        }
     }
 }
 
@@ -1357,16 +1413,77 @@ function syncToGoogleSheets() {
         });
 }
 
-function loadSavedData() {
+// ==========================================
+// LOAD DATA FROM FIREBASE + REAL-TIME SYNC
+// ==========================================
+
+function initializeFirebaseSync() {
+
+    // First, load local data temporarily
     const saved = localStorage.getItem('bachelor_brotherhood_db');
+
     if (saved) {
         try {
             state = JSON.parse(saved);
-            if (!state.dailyMeals) state.dailyMeals = {};
+
+            if (!state.dailyMeals) {
+                state.dailyMeals = {};
+            }
+
         } catch (e) {
-            console.error("Error loading saved state", e);
+            console.error("Error loading local saved state", e);
         }
     }
+
+    // Listen for Firebase changes in real-time
+    firebaseDataRef.on('value', (snapshot) => {
+
+        if (snapshot.exists()) {
+
+            // Firebase has data → use Firebase data
+            state = snapshot.val();
+
+            if (!state.dailyMeals) {
+                state.dailyMeals = {};
+            }
+
+            // Also save a local backup
+            localStorage.setItem(
+                'bachelor_brotherhood_db',
+                JSON.stringify(state)
+            );
+
+            firebaseReady = true;
+
+            // Update the website automatically
+            renderAll();
+
+            console.log("✅ Data received from Firebase");
+
+        } else {
+
+            // Firebase is empty → upload current data
+            firebaseDataRef.set(state)
+                .then(() => {
+                    firebaseReady = true;
+
+                    console.log("✅ Initial data uploaded to Firebase");
+
+                    renderAll();
+                })
+                .catch((error) => {
+                    console.error(
+                        "❌ Firebase initial upload error:",
+                        error
+                    );
+                });
+        }
+
+    }, (error) => {
+
+        console.error("❌ Firebase connection error:", error);
+
+    });
 }
 
 function resetData() {
