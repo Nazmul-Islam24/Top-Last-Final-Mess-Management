@@ -3,7 +3,7 @@ const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzvy45
 
 // Admin Credentials Setup
 const ADMIN_EMAIL = "nzlpatwary901@gmail.com";
-const ADMIN_PIN = "1234";
+const ADMIN_PIN = "12347";
 let isAdmin = false;
 
 // ==========================================
