@@ -50,6 +50,16 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function renderAll() {
+
+    // Firebase থেকে আসা selected month
+    // dropdown-এও দেখাবে
+    const monthDropdown =
+        document.getElementById('selected-month');
+
+    if (monthDropdown && state.selectedMonth) {
+        monthDropdown.value = state.selectedMonth;
+    }
+
     renderDailyMealTab();
     renderMembers();
     renderBazar();
