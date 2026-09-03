@@ -1527,11 +1527,17 @@ function initializeFirebaseSync() {
 
             firebaseReady = true;
 
+            // Update top month dropdown from Firebase
+            const monthDropdown = document.getElementById('selected-month');
+
+            if (monthDropdown && state.selectedMonth) {
+                monthDropdown.value = state.selectedMonth;
+            }
+
             // Website automatically update
             renderAll();
 
             console.log("✅ Data received from Firebase");
-
         }
 
         else {
