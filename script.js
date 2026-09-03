@@ -2,8 +2,7 @@
 const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzvy45mhfcw1qkBirPMAy4v2_MF8Py-iqaxa3JX5wsa8MHBsuraeSUNbsl2rlgyHe26RQ/exec";
 
 // Admin Credentials Setup
-const ADMIN_EMAIL = "nzlpatwary901@gmail.com";
-const ADMIN_PIN = "12347";
+const ADMIN_PIN = "1233447";
 let isAdmin = false;
 
 // ==========================================
@@ -135,14 +134,24 @@ function closeAdminModal() {
 }
 
 function verifyAdmin() {
-    const inputPin = document.getElementById('admin-pin-input').value;
+
+    const inputPin = document
+        .getElementById('admin-pin-input')
+        .value
+        .trim();
+
     if (inputPin === ADMIN_PIN) {
+
         isAdmin = true;
-        alert(`এডমিন হিসেবে লগইন সফল হয়েছে! (${ADMIN_EMAIL})`);
+
+        alert("এডমিন হিসেবে লগইন সফল হয়েছে!");
+
         closeAdminModal();
         updateAdminUI();
         renderAll();
+
     } else {
+
         alert("ভুল পিন কোড! শুধুমাত্র এডমিন এডিট করতে পারবেন।");
     }
 }
@@ -1568,13 +1577,68 @@ function initializeFirebaseSync() {
 
 function resetData() {
     if (!isAdmin) return;
+
     if (confirm("আপনি কি নিশ্চিত যে সকল ডাটা রিসেট করতে চান?")) {
-        localStorage.removeItem('bachelor_brotherhood_db');
+
+        // Default state এ ফিরে যাওয়া
         state = JSON.parse(JSON.stringify(defaultState));
-        const monthDropdown = document.getElementById('selected-month');
-        if (monthDropdown) monthDropdown.value = state.selectedMonth;
-        renderAll();
-        alert('ডাটা রিসেট সম্পন্ন হয়েছে।');
+
+        // Local browser থেকেও update
+        localStorage.setItem(
+            'bachelor_brotherhood_db',
+            JSON.stringify(state)
+        );
+
+        // Firebase এ reset data পাঠানো
+        if (firebaseReady) {
+
+            firebaseDataRef.set(state)
+                .then(() => {
+
+                    // Month dropdown update
+                    const monthDropdown =
+                        document.getElementById('selected-month');
+
+                    if (monthDropdown) {
+                        monthDropdown.value = state.selectedMonth;
+                    }
+
+                    // Website refresh/render
+                    renderAll();
+
+                    alert('ডাটা রিসেট সম্পন্ন হয়েছে এবং Firebase-এ sync হয়েছে।');
+
+                    console.log("✅ Firebase data reset successfully");
+
+                })
+                .catch((error) => {
+
+                    console.error(
+                        "❌ Firebase reset error:",
+                        error
+                    );
+
+                    alert(
+                        "Firebase-এ reset করতে সমস্যা হয়েছে। Internet connection check করুন।"
+                    );
+                });
+
+        } else {
+
+            // Firebase ready না থাকলে local reset
+            const monthDropdown =
+                document.getElementById('selected-month');
+
+            if (monthDropdown) {
+                monthDropdown.value = state.selectedMonth;
+            }
+
+            renderAll();
+
+            alert(
+                'Local data reset হয়েছে, কিন্তু Firebase এখনো ready হয়নি।'
+            );
+        }
     }
 }
 
