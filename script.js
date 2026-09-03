@@ -613,26 +613,74 @@ function renderMembers() {
 }
 
 function addMember() {
+
     if (!isAdmin) return;
+
+    // Firebase থেকে null এলে empty array বানাবে
+    if (!Array.isArray(state.members)) {
+        state.members = [];
+    }
+
     const input = document.getElementById('new-member-name');
+
+    if (!input) {
+        console.error("❌ new-member-name input পাওয়া যায়নি");
+        return;
+    }
+
     const name = input.value.trim();
+
     if (!name) {
         alert("মেম্বারের নাম লিখুন!");
         return;
     }
-    const newId = state.members.length > 0 ? Math.max(...state.members.map(m => m.id)) + 1 : 1;
-    state.members.push({ id: newId, name: name, deposit: 0 });
+
+    const newId =
+        state.members.length > 0
+            ? Math.max(...state.members.map(m => Number(m.id) || 0)) + 1
+            : 1;
+
+    state.members.push({
+        id: newId,
+        name: name,
+        deposit: 0
+    });
+
     input.value = '';
+
     renderAll();
+
     saveData(false);
+
+    console.log("✅ Member added:", name);
 }
 
 function deleteMember(idx) {
+
     if (!isAdmin) return;
-    if (confirm(`আপনি কি "${state.members[idx].name}" কে বাদ দিতে চান?`)) {
-        state.members.splice(idx, 1);
+
+    if (!Array.isArray(state.members)) {
+        state.members = [];
         renderAll();
         saveData(false);
+        return;
+    }
+
+    if (!state.members[idx]) return;
+
+    if (
+        confirm(
+            `আপনি কি "${state.members[idx].name}" কে বাদ দিতে চান?`
+        )
+    ) {
+
+        state.members.splice(idx, 1);
+
+        renderAll();
+
+        saveData(false);
+
+        console.log("✅ Member deleted");
     }
 }
 
@@ -1327,7 +1375,11 @@ function handleSettlementText(input) {
     }
 }
 
+
+// ==========================================
 // STORAGE + FIREBASE REAL-TIME CLOUD SAVE
+// ==========================================
+
 function saveData(showAlert = false) {
 
     if (!isAdmin && showAlert) {
@@ -1341,13 +1393,19 @@ function saveData(showAlert = false) {
         state.selectedMonth = monthDropdown.value;
     }
 
+    // Make sure Firebase never receives invalid array values
+    state.members = Array.isArray(state.members) ? state.members : [];
+    state.bazar = Array.isArray(state.bazar) ? state.bazar : [];
+    state.extra = Array.isArray(state.extra) ? state.extra : [];
+    state.dailyMeals = state.dailyMeals || {};
+
     // 1. Local backup
     localStorage.setItem(
         'bachelor_brotherhood_db',
         JSON.stringify(state)
     );
 
-    // 2. Firebase-এ Save
+    // 2. Firebase Save
     if (firebaseReady) {
 
         firebaseDataRef.set(state)
@@ -1355,7 +1413,7 @@ function saveData(showAlert = false) {
 
                 console.log("✅ Data successfully saved to Firebase");
 
-                // 3. Admin চাইলে Google Sheet backup
+                // 3. Google Sheet backup only when requested
                 if (showAlert) {
                     syncToGoogleSheets();
                 }
@@ -1379,7 +1437,6 @@ function saveData(showAlert = false) {
             "⚠️ Firebase এখনও ready হয়নি।"
         );
 
-        // Firebase ready না হলেও Admin-এর Google Sheet backup চলবে
         if (showAlert) {
             syncToGoogleSheets();
         }
@@ -1440,14 +1497,29 @@ function initializeFirebaseSync() {
 
         if (snapshot.exists()) {
 
-            // Firebase has data → use Firebase data
-            state = snapshot.val();
+            const firebaseState = snapshot.val() || {};
 
-            if (!state.dailyMeals) {
-                state.dailyMeals = {};
-            }
+            // Firebase থেকে data নেওয়ার সময়
+            // সব প্রয়োজনীয় structure ঠিক রাখা হচ্ছে
+            state = {
+                selectedMonth: firebaseState.selectedMonth || "January",
 
-            // Also save a local backup
+                members: Array.isArray(firebaseState.members)
+                    ? firebaseState.members
+                    : [],
+
+                bazar: Array.isArray(firebaseState.bazar)
+                    ? firebaseState.bazar
+                    : [],
+
+                extra: Array.isArray(firebaseState.extra)
+                    ? firebaseState.extra
+                    : [],
+
+                dailyMeals: firebaseState.dailyMeals || {}
+            };
+
+            // Local backup
             localStorage.setItem(
                 'bachelor_brotherhood_db',
                 JSON.stringify(state)
@@ -1455,12 +1527,14 @@ function initializeFirebaseSync() {
 
             firebaseReady = true;
 
-            // Update the website automatically
+            // Website automatically update
             renderAll();
 
             console.log("✅ Data received from Firebase");
 
-        } else {
+        }
+
+        else {
 
             // Firebase is empty → upload current data
             firebaseDataRef.set(state)
