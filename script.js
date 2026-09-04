@@ -99,14 +99,27 @@ function setupMonthSelector() {
     const monthDropdown = document.getElementById('selected-month');
 
     if (monthDropdown) {
+
+        // Current state অনুযায়ী initial month দেখাবে
         if (state.selectedMonth) {
             monthDropdown.value = state.selectedMonth;
         }
 
         monthDropdown.addEventListener('change', (e) => {
-            state.selectedMonth = e.target.value;
-            saveData(false);
+
+            // User যে month select করেছে
+            const selectedMonth = e.target.value;
+
+            // State update
+            state.selectedMonth = selectedMonth;
+
+            // সাথে সাথে UI update
             renderAll();
+
+            // Firebase-এ save
+            saveData(false);
+
+            console.log("✅ Month changed to:", selectedMonth);
         });
     }
 }
@@ -175,20 +188,45 @@ function updateAdminUI() {
     const adminControls = document.getElementById('admin-controls');
     const adminOnlyElems = document.querySelectorAll('.admin-only');
 
-    // 🟢 [NEW] Month Selector Control - এডমিন না হলে ডিসেবল থাকবে
     const monthDropdown = document.getElementById('selected-month');
-    if (monthDropdown) {
-        monthDropdown.disabled = !isAdmin;
-    }
 
     if (isAdmin) {
-        if (btnText) btnText.innerText = "Logout Admin";
-        if (adminControls) adminControls.classList.remove('hidden');
-        adminOnlyElems.forEach(el => el.classList.remove('hidden'));
+
+        // Admin হলে Month Selector চালু থাকবে
+        if (monthDropdown) {
+            monthDropdown.disabled = false;
+        }
+
+        if (btnText) {
+            btnText.innerText = "Logout Admin";
+        }
+
+        if (adminControls) {
+            adminControls.classList.remove('hidden');
+        }
+
+        adminOnlyElems.forEach(el => {
+            el.classList.remove('hidden');
+        });
+
     } else {
-        if (btnText) btnText.innerText = "Admin Login";
-        if (adminControls) adminControls.classList.add('hidden');
-        adminOnlyElems.forEach(el => el.classList.add('hidden'));
+
+        // সাধারণ visitor হলে Month Selector বন্ধ থাকবে
+        if (monthDropdown) {
+            monthDropdown.disabled = true;
+        }
+
+        if (btnText) {
+            btnText.innerText = "Admin Login";
+        }
+
+        if (adminControls) {
+            adminControls.classList.add('hidden');
+        }
+
+        adminOnlyElems.forEach(el => {
+            el.classList.add('hidden');
+        });
     }
 }
 
