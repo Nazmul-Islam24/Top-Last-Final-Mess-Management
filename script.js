@@ -1454,19 +1454,16 @@ function saveData(showAlert = false) {
         state.selectedMonth = monthDropdown.value;
     }
 
-    // Make sure Firebase never receives invalid array values
     state.members = Array.isArray(state.members) ? state.members : [];
     state.bazar = Array.isArray(state.bazar) ? state.bazar : [];
     state.extra = Array.isArray(state.extra) ? state.extra : [];
     state.dailyMeals = state.dailyMeals || {};
 
-    // 1. Local backup
     localStorage.setItem(
         'bachelor_brotherhood_db',
         JSON.stringify(state)
     );
 
-    // 2. Firebase Save
     if (firebaseReady) {
 
         firebaseDataRef.set(state)
@@ -1474,7 +1471,6 @@ function saveData(showAlert = false) {
 
                 console.log("✅ Data successfully saved to Firebase");
 
-                // 3. Google Sheet backup only when requested
                 if (showAlert) {
                     syncToGoogleSheets();
                 }
@@ -1503,6 +1499,78 @@ function saveData(showAlert = false) {
         }
     }
 }
+
+
+// ⬇️ ঠিক এখান থেকে নতুন function
+
+function downloadFirebaseBackup() {
+
+    if (!isAdmin) {
+        alert("শুধুমাত্র Admin backup download করতে পারবেন!");
+        return;
+    }
+
+    try {
+
+        const backupData = {
+            backupDate: new Date().toISOString(),
+            selectedMonth: state.selectedMonth || "January",
+            members: Array.isArray(state.members) ? state.members : [],
+            bazar: Array.isArray(state.bazar) ? state.bazar : [],
+            extra: Array.isArray(state.extra) ? state.extra : [],
+            dailyMeals: state.dailyMeals || {}
+        };
+
+        const jsonData = JSON.stringify(backupData, null, 2);
+
+        const blob = new Blob([jsonData], {
+            type: "application/json"
+        });
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+
+        link.href = url;
+
+        const date = new Date()
+            .toISOString()
+            .slice(0, 10);
+
+        link.download =
+            `Bachelor-Brotherhood-Backup-${date}.json`;
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+        alert(
+            "✅ Firebase data-এর backup সফলভাবে download হয়েছে!"
+        );
+
+        console.log(
+            "✅ Firebase backup downloaded:",
+            backupData
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Backup download error:",
+            error
+        );
+
+        alert(
+            "Backup download করতে সমস্যা হয়েছে। Console check করুন।"
+        );
+    }
+}
+
+
 
 function syncToGoogleSheets() {
     if (!GOOGLE_SHEET_WEBHOOK_URL || GOOGLE_SHEET_WEBHOOK_URL.includes("YOUR_GOOGLE")) {
