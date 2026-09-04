@@ -97,8 +97,12 @@ function handleMemberSelect(memberId) {
 // Month Selector Handler
 function setupMonthSelector() {
     const monthDropdown = document.getElementById('selected-month');
+
     if (monthDropdown) {
-        if (state.selectedMonth) monthDropdown.value = state.selectedMonth;
+        if (state.selectedMonth) {
+            monthDropdown.value = state.selectedMonth;
+        }
+
         monthDropdown.addEventListener('change', (e) => {
             state.selectedMonth = e.target.value;
             saveData(false);
