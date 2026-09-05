@@ -1,5 +1,5 @@
 // Google Sheets Webhook App URL
-const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzvy45mhfcw1qkBirPMAy4v2_MF8Py-iqaxa3JX5wsa8MHBsuraeSUNbsl2rlgyHe26RQ/exec";
+const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbz5_890fUysvdm-PtcXz0cNwNwcyeEsSt2_i0ef1RCwehSwrqRD4LKZUCphB9p2wv7G/exec";
 
 // Admin Credentials Setup
 const ADMIN_PIN = "1233447";
@@ -1572,32 +1572,392 @@ function downloadFirebaseBackup() {
 
 
 
-function syncToGoogleSheets() {
-    if (!GOOGLE_SHEET_WEBHOOK_URL || GOOGLE_SHEET_WEBHOOK_URL.includes("YOUR_GOOGLE")) {
-        alert("লোকাল স্টোরেজে ডাটা সেভ হয়েছে! গুগল শিটে ব্যাকআপ পেতে script.js ফাইলে Webhook URL যুক্ত করুন।");
+
+// ==========================================
+// FIREBASE BACKUP RESTORE
+// ==========================================
+
+function openRestoreBackup() {
+
+    // শুধু Admin restore করতে পারবে
+    if (!isAdmin) {
+        alert("শুধুমাত্র Admin backup restore করতে পারবেন!");
         return;
     }
 
+    // Firebase ready না হলে restore বন্ধ
+    if (!firebaseReady) {
+        alert(
+            "Firebase এখনো ready হয়নি।\n" +
+            "কিছুক্ষণ পরে আবার চেষ্টা করুন।"
+        );
+        return;
+    }
+
+    // Hidden file input তৈরি
+    const fileInput = document.createElement("input");
+
+    fileInput.type = "file";
+    fileInput.accept = ".json,application/json";
+
+    fileInput.addEventListener("change", async function (event) {
+
+        const file = event.target.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        try {
+
+            // ==============================
+            // JSON FILE READ
+            // ==============================
+
+            const text = await file.text();
+
+            const backupData = JSON.parse(text);
+
+
+            // ==============================
+            // BACKUP VALIDATION
+            // ==============================
+
+            if (
+                !backupData ||
+                !Array.isArray(backupData.members) ||
+                !Array.isArray(backupData.bazar) ||
+                !Array.isArray(backupData.extra) ||
+                !backupData.dailyMeals
+            ) {
+
+                alert(
+                    "❌ এই fileটি valid " +
+                    "Bachelor Brotherhood backup file নয়!"
+                );
+
+                return;
+            }
+
+
+            // ==============================
+            // CONFIRMATION
+            // ==============================
+
+            const confirmed = confirm(
+                "⚠️ BACKUP RESTORE\n\n" +
+
+                "এই backup restore করলে বর্তমানে " +
+                "Firebase-এ থাকা data replace হয়ে যাবে।\n\n" +
+
+                "Members\n" +
+                "Bazar\n" +
+                "Extra Expenses\n" +
+                "Daily Meals\n" +
+                "এবং Selected Month\n\n" +
+
+                "সব backup-এর data দিয়ে replace হবে।\n\n" +
+
+                "আপনি কি Restore করতে চান?"
+            );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            // ==============================
+            // CREATE CLEAN RESTORED STATE
+            // ==============================
+
+            const restoredState = {
+
+                selectedMonth:
+                    backupData.selectedMonth || "January",
+
+                members:
+                    Array.isArray(backupData.members)
+                        ? backupData.members
+                        : [],
+
+                bazar:
+                    Array.isArray(backupData.bazar)
+                        ? backupData.bazar
+                        : [],
+
+                extra:
+                    Array.isArray(backupData.extra)
+                        ? backupData.extra
+                        : [],
+
+                dailyMeals:
+                    backupData.dailyMeals || {}
+            };
+
+
+            // ==============================
+            // UPDATE LOCAL STATE
+            // ==============================
+
+            state = restoredState;
+
+
+            // ==============================
+            // UPDATE LOCAL STORAGE
+            // ==============================
+
+            localStorage.setItem(
+                "bachelor_brotherhood_db",
+                JSON.stringify(state)
+            );
+
+
+            // ==============================
+            // RESTORE TO FIREBASE
+            // ==============================
+
+            await firebaseDataRef.set(state);
+
+
+            // ==============================
+            // UPDATE MONTH DROPDOWN
+            // ==============================
+
+            const monthDropdown =
+                document.getElementById("selected-month");
+
+            if (monthDropdown) {
+
+                monthDropdown.value =
+                    state.selectedMonth;
+            }
+
+
+            // ==============================
+            // REFRESH ENTIRE UI
+            // ==============================
+
+            renderAll();
+
+
+            // ==============================
+            // SUCCESS MESSAGE
+            // ==============================
+
+            alert(
+                "✅ Backup সফলভাবে Restore হয়েছে!\n\n" +
+                "Firebase-এ data update হয়েছে।\n\n" +
+                "অন্য browser-গুলোতেও data " +
+                "automatically update হবে।"
+            );
+
+
+            console.log(
+                "✅ Backup restored successfully:",
+                restoredState
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "❌ Backup restore error:",
+                error
+            );
+
+            alert(
+                "❌ Backup restore করতে সমস্যা হয়েছে!\n\n" +
+                "নিশ্চিত করুন যে fileটি " +
+                "Bachelor Brotherhood-এর valid JSON backup।"
+            );
+        }
+
+    });
+
+
+    // ==============================
+    // OPEN FILE PICKER
+    // ==============================
+
+    fileInput.click();
+}
+
+
+function syncToGoogleSheets() {
+
+    if (!GOOGLE_SHEET_WEBHOOK_URL || GOOGLE_SHEET_WEBHOOK_URL.includes("YOUR_GOOGLE")) {
+
+        alert("গুগল শিটে ব্যাকআপ পেতে script.js ফাইলে Webhook URL যুক্ত করুন।");
+
+        return;
+
+    }
+
+
+
+    // নির্বাচিত মাসের সব ডাটা প্রসেস ও হিসাব করা
+
+    const monthName = state.selectedMonth || new Date().toLocaleString('en-US', { month: 'long' });
+
+    let totalBazar = (state.bazar || []).reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+
+    let totalExtra = (state.extra || []).reduce((acc, curr) => acc + (evaluateCostInput(curr.cost) || 0), 0);
+
+
+
+    let globalTotalMeals = 0;
+
+    if (state.dailyMeals) {
+
+        Object.values(state.dailyMeals).forEach(dayData => {
+
+            Object.values(dayData.meals || {}).forEach(m => {
+
+                globalTotalMeals += (Number(m.lunch) || 0) + (Number(m.dinner) || 0);
+
+            });
+
+        });
+
+    }
+
+
+
+    const mealRate = globalTotalMeals > 0 ? (totalBazar / globalTotalMeals) : 0;
+
+    const memberCount = state.members ? state.members.length : 0;
+
+    const extraPerMember = memberCount > 0 ? (totalExtra / memberCount) : 0;
+
+
+
+    // মেম্বারদের সামারি ও ইন্ডিভিজুয়াল ডাটা সাজানো
+
+    const memberSummaryList = (state.members || []).map(m => {
+
+        let memberLunch = 0;
+
+        let memberDinner = 0;
+
+        if (state.dailyMeals) {
+
+            Object.values(state.dailyMeals).forEach(d => {
+
+                const mMeal = d.meals?.[m.id];
+
+                if (mMeal) {
+
+                    memberLunch += Number(mMeal.lunch) || 0;
+
+                    memberDinner += Number(mMeal.dinner) || 0;
+
+                }
+
+            });
+
+        }
+
+        const totalMeals = memberLunch + memberDinner;
+
+        const mealCost = totalMeals * mealRate;
+
+        const totalAllCost = mealCost + extraPerMember;
+
+        const deposit = evaluateCostInput(m.deposit) || 0;
+
+        const balance = Math.round(deposit - totalAllCost);
+
+
+
+        return {
+
+            id: m.id,
+
+            name: m.name,
+
+            deposit: deposit,
+
+            lunchCount: memberLunch,
+
+            dinnerCount: memberDinner,
+
+            totalMeals: totalMeals,
+
+            mealCost: Number(mealCost.toFixed(2)),
+
+            extraCost: Number(extraPerMember.toFixed(2)),
+
+            totalCost: Number(totalAllCost.toFixed(2)),
+
+            balance: balance,
+
+            status: balance >= 0 ? `Get: ৳${balance}` : `Pay: ৳${Math.abs(balance)}`
+
+        };
+
+    });
+
+
+
+    // গুগল শিটে পাঠানোর সম্পূর্ণ ডেটা পে-লোড
+
     const payload = {
-        // 🟢 এই নিচের লাইনটিতে পরিবর্তন করা হয়েছে (নির্দিষ্ট মাসের বদলে ডাইনামিক চলতি মাস ব্যাকআপ হবে)
-        month: state.selectedMonth || new Date().toLocaleString('en-US', { month: 'long' }),
-        members: state.members,
-        bazar: state.bazar,
-        extra: state.extra,
-        dailyMeals: state.dailyMeals
+
+        month: monthName,
+
+        overview: {
+
+            totalDeposit: memberSummaryList.reduce((acc, m) => acc + m.deposit, 0),
+
+            totalBazarCost: totalBazar,
+
+            totalExtraCost: totalExtra,
+
+            totalOverallExpense: totalBazar + totalExtra,
+
+            totalMeals: globalTotalMeals,
+
+            mealRate: Number(mealRate.toFixed(2))
+
+        },
+
+        membersSummary: memberSummaryList,
+
+        bazarList: state.bazar || [],
+
+        extraList: state.extra || []
+
     };
 
+
+
+    // Google Apps Script এ ডাটা পাঠানো
+
     fetch(GOOGLE_SHEET_WEBHOOK_URL, {
+
         method: 'POST',
+
         mode: 'no-cors',
+
         headers: { 'Content-Type': 'application/json' },
+
         body: JSON.stringify(payload)
-    }).then(() => alert(`ডাটা সফলভাবে সেভ হয়েছে এবং (${payload.month}) মাসের ব্যাকআপ Google Sheet-এ জমা হয়েছে!`))
-        .catch(err => {
-            console.error("Cloud Backup Error: ", err);
-            alert('লোকালে সেভ হয়েছে, তবে গুগল শিটে পাঠাতে সমস্যা হয়েছে।');
-        });
+
+    }).then(() => {
+
+        alert(`✅ (${payload.month}) মাসের সকল ডাটা সুন্দরভাবে সাজিয়ে Google Sheet-এ অটো আপলোড হয়েছে!`);
+
+    }).catch(err => {
+
+        console.error("Cloud Sync Error: ", err);
+
+        alert('❌ গুগল শিটে পাঠাতে সমস্যা হয়েছে। ইন্টারনেট কানেকশন চেক করুন।');
+
+    });
+
 }
+
 
 // ==========================================
 // LOAD DATA FROM FIREBASE + REAL-TIME SYNC
